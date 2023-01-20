@@ -4,6 +4,10 @@ import pandas as pd
 #from database_conn import connect
 import streamlit as st
 import time
+import numpy as np
+import plotly.express as px
+with open('css/upload_sheet.css') as f:
+    st.markdown(f'<style>{f.read()}</style>',unsafe_allow_html=True)
 
 # credentials declaration
 database="mutual_fund_dashboard"
@@ -74,7 +78,7 @@ with st.expander("Filter"):
         # show filter
         filter_show_q="SELECT * FROM " + mf_filter_table
         filter_df=pd.read_sql(filter_show_q,sq_conn)
-        st.write(filter_df)
+        st._legacy_dataframe(filter_df)
 
     with update_tab:
         if 'df_filter' not in st.session_state:
@@ -123,61 +127,144 @@ with st.expander("Filter"):
         # show filter
         filter_show_q="SELECT * FROM " + mf_filter_table
         filter_df=pd.read_sql(filter_show_q,sq_conn)
-        st.write(filter_df)
-
+        st._legacy_dataframe(filter_df)
 
 
 test_df=selected_file_df
 columns=test_df.columns.to_list()
-st.write(columns)
+#st.write(columns)
+columns_r=[x.replace("_", " ") for x in columns]
+#st.write(columns_r)
 
+match_sheet_parameter={}
 for parameter in filter_df['parameter']:
-    for parameter_x in 
+    arr=[]
+    for x in columns_r:
+        if parameter in x:
+            arr.append(x)
+            #st.write(sheet_param)
+    match_sheet_parameter[parameter]=[x.replace(" ", "_") for x in arr]
 
 
+
+task={}
+process={}
+
+filter_parameters=filter_df.columns.to_list()[1:]
+#st.write(filter_parameter)
+for parameter in filter_df['parameter']:
+    ind=np.where(filter_df["parameter"] == parameter)
+    par_process={}
+    for column in filter_parameters:
+        value1=filter_df.at[ind[0][0], column]
+        #st.write(value1)
+        par_process[column]=value1
+    process[parameter]=par_process
+    
+
+with st.expander("Parameters matching in sheet"):
+    st.write(match_sheet_parameter) 
+with st.expander("Process dictionary"):
+    st.write(process)
+    print(process)
+
+#for key in process:
+#    st.write(key)
+#    st.write(process[key])
+#    for task in process[key]:
+#        st.write("{}={}".format(task,process[key][task]))
+
+#st.write("filter creation")
+#extracting parameter from filter
+task_dictionary={}
+for filter_parameter in filter_df['parameter']:
+    #st.write(filter_parameter)
+    matched_sheet_param_list=match_sheet_parameter[filter_parameter]
+    #st.write(matched_sheet_param_list)
+    for sheet_param in matched_sheet_param_list:
+        task_dictionary[sheet_param]=process[filter_parameter]
+        #st.write(sheet_param)
+        #st.write(filter_parameter)
+        #st.write(process[filter_parameter])
+
+#st.write(task_dictionary)
 
 if st.checkbox("Apply"):
-
-        parameter=1
-        condition_1=2
-        condition_2=3
-        weightage_1=4
-        select=5
-        weightage_2=6
+    total_weightage=test_df['Legal_Name']
+    for parameter_name in task_dictionary:
+        fund_name_col_name='Legal_Name'
+        parameter=parameter_name
+        condition_1=task_dictionary[parameter]["condition_1"]
+        condition_2=task_dictionary[parameter]["condition_2"]
+        weightage_1=task_dictionary[parameter]["weightage_1"]
+        sort=task_dictionary[parameter]["sort"]
+        weightage_2=task_dictionary[parameter]["weightage_2"]
 
         # temprory column
-        sharp_ratio_df=test_df[['Legal_Name','Sharpe_Ratio_1_Yr']]
-        #st.write(sharp_ratio_df)
-        test_column_df=sharp_ratio_df['Sharpe_Ratio_1_Yr']
+        parameter_col_df=test_df[[fund_name_col_name,parameter]]
+        #st.write(parameter_col_df)
+        test_column_df=parameter_col_df[parameter]
+
+        # first Step
+        #st.write(test_column_df.sum())
         average=test_column_df.sum()/len(test_column_df)
-        st.write(average)
+        #st.write(average)
+
+        # Second step
         arr=[]
+        if condition_2=="Above Average":
+            for value in test_column_df.to_list():
+                if value > average:
+                    arr.append(weightage_1)
+                else:
+                    arr.append(0)
+        elif condition_2=='Below Average':
+            for value in test_column_df.to_list():
+                if value < average:
+                    arr.append(weightage_1)
+                else:
+                    arr.append(0)
 
-        #st.write(test_column_df.to_list())
-        for value in test_column_df.to_list():
-            if value > average:
-                arr.append(1)
-            else:
-                arr.append(0)
         #st.write(arr)
-
-        weightage_df=pd.DataFrame({'weightage':arr})
+        weightage_df=pd.DataFrame({parameter+'_w':arr})
         #st.write(weightage_df)
-
-        sharp_ratio_df2=pd.concat([sharp_ratio_df,weightage_df],axis=1)
-        #st.write(sharp_ratio_df2)
+        parameter_col_df2=pd.concat([parameter_col_df,weightage_df],axis=1)
+        #st.write(parameter_col_df2)
 
         # second step of weightage
+        if sort=="Top 5":
+            sorted_df=parameter_col_df.sort_values(by=parameter,ascending=False).head(5)['Legal_Name'].index.to_list()
+            #st.write(sorted_df)
+        elif sort=="Bottom 5":
+            sorted_df=parameter_col_df.sort_values(by=parameter,ascending=False).tail(5)['Legal_Name'].index.to_list()
 
-        top5_df=sharp_ratio_df.sort_values(by='Sharpe_Ratio_1_Yr',ascending=False).head(5)['Legal_Name'].index.to_list()
-        st.write(top5_df)
-        for i in top5_df:
-            sharp_ratio_df2['weightage'][i]=2
+        for i in sorted_df:
+            parameter_col_df2[parameter+'_w'][i]=weightage_2
+        total_weightage=pd.concat([total_weightage,parameter_col_df2[parameter+'_w']],axis=1)
 
-        st.write(sharp_ratio_df2)
+        #st._legacy_dataframe(parameter_col_df2)
 
+    #st._legacy_dataframe(total_weightage)
+    Result=total_weightage.sum(axis=1)
+    total_weightage.insert(1,"Result",Result)
+    st._legacy_dataframe(total_weightage)
 
+    st.subheader("Top 5 Funds")
 
+    top_fund_df=total_weightage[['Legal_Name','Result']].sort_values(by='Result',ascending=False).head(5)
+    st._legacy_dataframe(top_fund_df)
+    
+    top_fund_bar = px.bar(top_fund_df, x='Legal_Name',y='Result',text_auto='.2s',template='none')
+    #top_fund_bar.update_xaxes(rangeslider_visible=True)
+    top_fund_bar.update_xaxes(title_text='')
+    top_fund_bar.update_yaxes(title_text='')
+    top_fund_bar.update_xaxes(title_font=dict(size=2, family='Courier', color='crimson'))
+    top_fund_bar.update_xaxes( tickfont=dict(family='Rockwell', color='black', size=13))
+    top_fund_bar.update_yaxes( tickfont=dict(family='Rockwell', color='black', size=11))
+    top_fund_bar.update_layout(coloraxis_showscale=False)
+    top_fund_bar.update_xaxes(ticklen=0)
+    top_fund_bar.update_yaxes(ticklen=0)
+    st.plotly_chart(top_fund_bar, use_container_width=True)
 
 
 

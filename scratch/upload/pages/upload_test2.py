@@ -5,9 +5,12 @@ import pandas as pd
 import streamlit as st
 import time
 
+with open('css/upload_sheet.css') as f:
+    st.markdown(f'<style>{f.read()}</style>',unsafe_allow_html=True)
+
 # credentials declaration
 database="mutual_fund_dashboard"
-mf_sheet_table="mf_master_sheets"
+mf_sheet_table="demo_master_sheet"
 mf_filter_table="mf_master_filter"
 user="localhost"
 host="root"

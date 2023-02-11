@@ -1,0 +1,3 @@
+# delete columns query
+ALTER TABLE Customers
+DROP COLUMN ContactName;

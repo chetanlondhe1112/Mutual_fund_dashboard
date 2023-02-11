@@ -1,4 +1,7 @@
-import mysql.connector                                                # to setup mysql connection
+# Update in methodology of filtearation of data
+# Instead of taking single column for filteration take same parameters various years data and avearage out combinlly and perform filter conditions
+
+import mysql.connector   # to setup mysql connection
 from sqlalchemy import create_engine  # to setup mysql connection
 import pandas as pd
 #from database_conn import connect
@@ -6,12 +9,12 @@ import streamlit as st
 import time
 import numpy as np
 import plotly.express as px
-with open('css/upload_sheet.css') as f:
-    st.markdown(f'<style>{f.read()}</style>',unsafe_allow_html=True)
+#with open('css/upload_sheet.css') as f:
+#    st.markdown(f'<style>{f.read()}</style>',unsafe_allow_html=True)
 
 # credentials declaration
 database="mutual_fund_dashboard"
-mf_sheet_table="mf_master_sheets"
+mf_sheet_table="demo_master_sheet"
 mf_filter_table="mf_master_filter"
 user="localhost"
 host="root"
@@ -47,13 +50,14 @@ sq_cur=sq_conn.connect()
 cur=conn.cursor()
 sq_cur=sq_conn.connect()
 
-
+_="""
 with st.expander("Connection objects:"):
     st.write("MySQL connection:{}".format(conn))
     st.write("MySQL curser:{}".format(cur))
     st.write("SQLAlchemy connection:{}".format(sq_conn))
     st.write("SQLAlchemy curser:{}".format(sq_cur))
     st.write("check [link](http://localhost:8501/upload_test2)")
+"""
 
 # title
 st.title("Filter:")
@@ -66,7 +70,7 @@ selected_file_name=st.selectbox("",options=file_names_df)
 
 #show df
 selected_file_q="SELECT * FROM " + mf_sheet_table+" WHERE sheet_name='"+selected_file_name+"'"
-selected_file_df=pd.read_sql(selected_file_q,sq_conn)
+selected_file_df=pd.read_sql(selected_file_q,sq_conn).dropna(axis=1,how='all')
 
 with st.expander("My file"):
     st._legacy_dataframe(selected_file_df)
@@ -88,10 +92,10 @@ with st.expander("Filter"):
         #update filter interface
         u_parameter=st.text_input("Enter Parameter")
         ut_col=st.columns((1,1,1,1,1))
-        u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average'])
-        u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average'])
+        u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average','-'])
+        u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average','Gold'])
         u_weightage_1=ut_col[2].number_input("1st Weighatge")
-        u_sort=ut_col[3].selectbox("Select sort Condition",options=['Top 5','Bottom 5'])
+        u_sort=ut_col[3].selectbox("Select sort Condition",options=['Top 5','Bottom 5','Others'])
         u_weightage_2=ut_col[4].number_input("2nd Weightage")
 
         if st.button('AND'):
@@ -145,8 +149,6 @@ for parameter in filter_df['parameter']:
             #st.write(sheet_param)
     match_sheet_parameter[parameter]=[x.replace(" ", "_") for x in arr]
 
-
-
 task={}
 process={}
 
@@ -161,20 +163,20 @@ for parameter in filter_df['parameter']:
         par_process[column]=value1
     process[parameter]=par_process
     
-
 with st.expander("Parameters matching in sheet"):
     st.write(match_sheet_parameter) 
 with st.expander("Process dictionary"):
     st.write(process)
-    print(process)
+#    print(process)
 
-#for key in process:
-#    st.write(key)
-#    st.write(process[key])
-#    for task in process[key]:
-#        st.write("{}={}".format(task,process[key][task]))
+for key in process:
+    st.write(key)
+    st.write(process[key])
+    for task in process[key]:
+        st.write("{}={}".format(task,process[key][task]))
 
-#st.write("filter creation")
+st.write("filter creation")
+
 #extracting parameter from filter
 task_dictionary={}
 for filter_parameter in filter_df['parameter']:
@@ -187,7 +189,16 @@ for filter_parameter in filter_df['parameter']:
         #st.write(filter_parameter)
         #st.write(process[filter_parameter])
 
-#st.write(task_dictionary)
+st.write(task_dictionary)
+for parameter_name in task_dictionary:
+        fund_name_col_name='Legal_Name'
+        parameter=parameter_name
+        condition_1=task_dictionary[parameter]["condition_1"]
+        condition_2=task_dictionary[parameter]["condition_2"]
+        weightage_1=task_dictionary[parameter]["weightage_1"]
+        sort=task_dictionary[parameter]["sort"]
+        weightage_2=task_dictionary[parameter]["weightage_2"]
+
 
 if st.checkbox("Apply"):
     total_weightage=test_df['Legal_Name']
@@ -199,75 +210,5 @@ if st.checkbox("Apply"):
         weightage_1=task_dictionary[parameter]["weightage_1"]
         sort=task_dictionary[parameter]["sort"]
         weightage_2=task_dictionary[parameter]["weightage_2"]
-
-        # temprory column
-        parameter_col_df=test_df[[fund_name_col_name,parameter]]
-        #st.write(parameter_col_df)
-        test_column_df=parameter_col_df[parameter]
-
-        # first Step
-        #st.write(test_column_df.sum())
-        average=test_column_df.sum()/len(test_column_df)
-        #st.write(average)
-
-        # Second step
-        arr=[]
-        if condition_2=="Above Average":
-            for value in test_column_df.to_list():
-                if value > average:
-                    arr.append(weightage_1)
-                else:
-                    arr.append(0)
-        elif condition_2=='Below Average':
-            for value in test_column_df.to_list():
-                if value < average:
-                    arr.append(weightage_1)
-                else:
-                    arr.append(0)
-
-        #st.write(arr)
-        weightage_df=pd.DataFrame({parameter+'_w':arr})
-        #st.write(weightage_df)
-        parameter_col_df2=pd.concat([parameter_col_df,weightage_df],axis=1)
-        #st.write(parameter_col_df2)
-
-        # second step of weightage
-        if sort=="Top 5":
-            sorted_df=parameter_col_df.sort_values(by=parameter,ascending=False).head(5)['Legal_Name'].index.to_list()
-            #st.write(sorted_df)
-        elif sort=="Bottom 5":
-            sorted_df=parameter_col_df.sort_values(by=parameter,ascending=False).tail(5)['Legal_Name'].index.to_list()
-
-        for i in sorted_df:
-            parameter_col_df2[parameter+'_w'][i]=weightage_2
-        total_weightage=pd.concat([total_weightage,parameter_col_df2[parameter+'_w']],axis=1)
-
-        #st._legacy_dataframe(parameter_col_df2)
-
-    #st._legacy_dataframe(total_weightage)
-    Result=total_weightage.sum(axis=1)
-    total_weightage.insert(1,"Result",Result)
-    st._legacy_dataframe(total_weightage)
-
-    st.subheader("Top 5 Funds")
-
-    top_fund_df=total_weightage[['Legal_Name','Result']].sort_values(by='Result',ascending=False).head(5)
-    st._legacy_dataframe(top_fund_df)
-    
-    top_fund_bar = px.bar(top_fund_df, x='Legal_Name',y='Result',text_auto='.2s',template='none')
-    #top_fund_bar.update_xaxes(rangeslider_visible=True)
-    top_fund_bar.update_xaxes(title_text='')
-    top_fund_bar.update_yaxes(title_text='')
-    top_fund_bar.update_xaxes(title_font=dict(size=2, family='Courier', color='crimson'))
-    top_fund_bar.update_xaxes( tickfont=dict(family='Rockwell', color='black', size=13))
-    top_fund_bar.update_yaxes( tickfont=dict(family='Rockwell', color='black', size=11))
-    top_fund_bar.update_layout(coloraxis_showscale=False)
-    top_fund_bar.update_xaxes(ticklen=0)
-    top_fund_bar.update_yaxes(ticklen=0)
-    st.plotly_chart(top_fund_bar, use_container_width=True)
-
-
-
-
-
+        pass
 

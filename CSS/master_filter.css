@@ -69,37 +69,29 @@
     position: initial;
     padding: 0rem;
 }
-
 .css-1cpxqw2.edgvbvh9
 {
     color: white;
     background-color: rgb(86, 86, 243);
 }
-/*.css-1cpxqw2.edgvbvh9 {
-    margin-top: 36px;
-    background-color: rgb(86, 86, 243);
-}*/
-
-.css-79elbk.e1fqkh3o10
-{
-    position: initial;
+.css-1t092wh.e1tzin5v0 {
+    gap: 0rem;
 }
-.css-hied5v.e1fqkh3o9
-{
-    padding-top: 3rem;
+.css-msp78y.e1tzin5v0 {
+    gap: 0rem;
 }
-
-/* Home Navigationbar position :initial*/
-.css-79elbk.e1fqkh3o8 {
-    position: initial;
-    padding: 0rem;
+.css-1r6slb0.e1tzin5v2 {
+    margin-top: 0rem;
 }
-.css-79elbk.e1fqkh3o8 {
-    position: initial;
-}
-ul.css-wjbhl0.e1fqkh3o7 {
-    padding: 0rem;
+.css-1ths729.e1tzin5v0 {
+    gap: 0rem;
 }
 .css-qri22k.egzxvld0 {
     visibility: hidden;
+}
+
+/* Resultants chart selection in bar or pie
+label.css-15tx938.effi0qh3 {
+    visibility: hidden;
+    margin-bottom: -1.5rem;
 }

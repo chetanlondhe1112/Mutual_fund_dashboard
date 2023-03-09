@@ -699,13 +699,110 @@ with filter_tab:
     else:
         st.info('Empty...')
 
+
+with create_tab:
+
+    if 'ct_df_filter' not in st.session_state:
+        st.session_state['ct_df_filter'] = pd.DataFrame({'parameter': [], 'condition_1': [],
+                        'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
+
+    st.header("Create Filter")
+
+    ct_name=st.text_input("Filter Name",key='create_tab')
+
+    #update filter interface
+    u_parameter=st.text_input("Enter Parameter",key='create_tab')
+    ct_col=st.columns((1,1,1,1,1))
+    u_condition_1=ct_col[0].selectbox("Select 1st Condition",options=['Average','-'],key='create_tab')
+    u_condition_2=ct_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average','Gold'],key='create_tab')
+    u_weightage_1=ct_col[2].number_input("1st Weighatge",key='create_tab')
+    u_sort=ct_col[3].selectbox("Select sort Condition",options=['Top 5','Bottom 5','Others'],key='create_tab')
+    u_weightage_2=ct_col[4].number_input("2nd Weightage",key='create_tab')
+
+    if ct_col[2].button('Add Parameter',key='create_tab'):
+        if u_parameter in st.session_state['ct_df_filter']['parameter'].to_list():
+            st.warning("paramter already added")
+            if len(st.session_state['ct_df_filter']):
+                st.write("New Parameters:")
+                st.table(st.session_state['ct_df_filter'])
+            
+        else:
+            selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
+                                'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
+
+            st.session_state['ct_df_filter'] = st.session_state['ct_df_filter'].append(selection, ignore_index=True)
+            st.write("New Parameters:")
+            st.table(st.session_state['ct_df_filter'])
+            st.experimental_rerun()
+
+    else:
+        if len(st.session_state['ct_df_filter']):
+            st.write("New Parameters:")
+            st.table(st.session_state['ct_df_filter'])
+
+    sc_but_col=st.columns((2,17,2))
+    if len(st.session_state['ct_df_filter']):
+        if sc_but_col[0].button("Clear"):
+            st.session_state['ct_df_filter'] = st.session_state['ct_df_filter'].drop(len(st.session_state['ct_df_filter']) - 1)
+            st.experimental_rerun()
+
+        if sc_but_col[2].button("Save"):  
+            if ct_name=='':
+                st.error("Please,give a name to this filter!")
+                st.stop()
+            if ct_name in st.session_state['mf_filter_names']['name'].to_list():
+                st.error("Sorry!,filter name already used..")
+                st.warning("Please,give different name!")
+
+            else:
+                with st.spinner('Adding new filter...'):
+                    time.sleep(1)
+                    st.session_state['ct_df_filter'].insert(0, "date_time", str(current_date))
+                    st.session_state['ct_df_filter'].insert(1, "lable", st.session_state["lable"])
+                    st.session_state['ct_df_filter'].insert(2, "username", st.session_state["username"])
+                    st.session_state['ct_df_filter'].insert(3, "name", ct_name)
+
+                    try:
+                        st.session_state['ct_df_filter'].to_sql(mf_filter_table, sq_conn, if_exists='append', index=False)
+                        st.success("Added...")
+                        time.sleep(1)
+                        st.session_state['ct_df_filter'] = st.session_state['ct_df_filter'].drop(x for x in range(len(st.session_state['ct_df_filter'])))
+                        st.session_state['ct_df_filter'].drop(st.session_state['ct_df_filter'].columns[[0,1,2,3]], axis=1, inplace=True)
+                    except:
+                        st.error("Error to add this filter...")
+                        st.warning("please try again....")
+                        time.sleep(2)
+                        st.experimental_rerun()
+                    st.session_state['mf_filter_names']=filter_names(username=username,table_name=mf_filter_table,connection=sq_conn)
+                    st.experimental_rerun()
+
+
 with add_tab:
-        if 'df_filter' not in st.session_state:
-            st.session_state.df_filter = pd.DataFrame({'parameter': [], 'condition_1': [],
+        
+        if 'at_df_filter' not in st.session_state:
+            st.session_state['at_df_filter'] = pd.DataFrame({'parameter': [], 'condition_1': [],
                                 'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
 
+        if 'at_selected_mf_filter_name' not in st.session_state:
+            st.session_state['at_selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
+        
+        if 'at_selected_mf_filter_df' and 'at_selected_mf_filter_date' not in st.session_state:
+            st.session_state['at_selected_mf_filter_df'],st.session_state['at_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['at_selected_mf_filter_name'])
+
+        at_select_filter_col=st.columns((8,8,1))
+        at_select_filter_col[2].write("")
+        at_select_filter_col[2].write("")
+
+        at_select_filter_col[0].header("Add Parameter")
+
+        at_selected_filter_name=at_select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'],key='add_tab')
+        if at_select_filter_col[2].button("🔍",key='at_select_filter_col'):
+            st.session_state['at_selected_mf_filter_name']=at_selected_filter_name
+            st.session_state['at_selected_mf_filter_df'],st.session_state['at_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['at_selected_mf_filter_name'])
+            st.experimental_rerun()
+
+
         #update filter interface
-        st.markdown("#### Add Parameter:")
         u_parameter=st.text_input("Enter Parameter")
         ut_col=st.columns((1,1,1,1,1))
         u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average','-'])
@@ -718,168 +815,200 @@ with add_tab:
             selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
                                 'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
 
-            st.session_state.df_filter = st.session_state.df_filter.append(selection, ignore_index=True)
+            st.session_state['at_df_filter'] = st.session_state['at_df_filter'].append(selection, ignore_index=True)
             st.write("New Parameters:")
-            st.table(st.session_state.df_filter)
+            st.table(st.session_state['at_df_filter'])
             st.experimental_rerun()
 
         else:
-            if len(st.session_state.df_filter):
+            if len(st.session_state['at_df_filter']):
                 st.write("New Parameters:")
-                st.table(st.session_state.df_filter)
+                st.table(st.session_state['at_df_filter'])
         sc_but_col=st.columns((2,17,2))
-        if len(st.session_state.df_filter):
+        if len(st.session_state['at_df_filter']):
                 if sc_but_col[0].button("Clear"):
-                    st.session_state.df_filter = st.session_state.df_filter.drop(len(st.session_state.df_filter) - 1)
+                    st.session_state['at_df_filter'] = st.session_state['at_df_filter'].drop(len(st.session_state['at_df_filter']) - 1)
                     st.experimental_rerun()
 
-                if sc_but_col[2].button("Save"):
-                
-                        with st.spinner('Saving...'):
+                if sc_but_col[2].button("Save"):  
+
+                    with st.spinner('Adding new paramteres...'):
+                        time.sleep(1)
+                        st.session_state['at_df_filter'].insert(0, "date_time", st.session_state['at_selected_mf_filter_date'])
+                        st.session_state['at_df_filter'].insert(1, "lable", st.session_state["lable"])
+                        st.session_state['at_df_filter'].insert(2, "username", st.session_state["username"])
+                        st.session_state['at_df_filter'].insert(3, "name", st.session_state['at_selected_mf_filter_name'])
+
+                        try:
+                            st.session_state['at_df_filter'].to_sql(mf_filter_table, sq_conn, if_exists='append', index=False)
+                            st.success("Added...")
                             time.sleep(1)
-                            
-                            st.session_state.df_filter.to_sql(mf_filter_table, sq_conn, if_exists='append', index=False)
-                            time.sleep(1)
-                            st.success("Done")
-                            st.session_state.df_filter = st.session_state.df_filter.drop(x for x in range(len(st.session_state.df_filter)))
-                            time.sleep(1)
-                            st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                            st.experimental_rerun()   
+                            st.session_state['at_df_filter'] = st.session_state['at_df_filter'].drop(x for x in range(len(st.session_state['at_df_filter'])))
+                            st.session_state['at_df_filter'].drop(st.session_state['at_df_filter'].columns[[0,1,2,3]], axis=1, inplace=True)
+                            st.session_state['at_selected_mf_filter_df'],st.session_state['at_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['at_selected_mf_filter_name'])
+
+                        except:
+                            st.error("Error to save this filter...")
+                            st.warning("please try again....")
+                            time.sleep(2)
+                            st.experimental_rerun()
+                        st.experimental_rerun()
 
         # show filter
-        #with st.expander("Show Filter"):
-        #if st.checkbox("Show Filter",key=1):
-        st.markdown("#### My Filter:")
-            #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-        st._legacy_dataframe(filter_df,height=1000)
-            #filter_show_q="SELECT * FROM " + mf_filter_table
-            #filter_df=pd.read_sql(filter_show_q,sq_conn)
-            #st._legacy_dataframe(filter_df,height=1000)
+        if len(st.session_state['at_selected_mf_filter_df']):
+            st.subheader(st.session_state['at_selected_mf_filter_name'])
+            st.write('Created at:'+str(st.session_state['at_selected_mf_filter_date']))
+            with st.expander("Show filter",expanded=True):
+                st._legacy_dataframe(st.session_state['at_selected_mf_filter_df'],height=1000)
+        else:
+            st.info('Empty...')
 
 
 with update_tab:
-                filter_test_df=filter_df.copy()
+        
+        if 'ut_selected_mf_filter_name' not in st.session_state:
+            st.session_state['ut_selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
+        
+        if 'ut_selected_mf_filter_df' and 'ut_selected_mf_filter_date' not in st.session_state:
+            st.session_state['ut_selected_mf_filter_df'],st.session_state['ut_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['ut_selected_mf_filter_name'])
 
-                Options=filter_df['parameter']
-                o_condition_1=['Average','-']
-                o_condition_2=['Above Average','Below Average','Gold']
-                o_sort=['Top 5','Bottom 5','Others']
-                conditions=['>', '<', '=']
-                results=[-1, 1]
-            #with st.form("Update paramter"):
-                st.subheader("Update Paramter:")
-    #with st.expander("Update Parameter"):
-                new_col=st.columns((15,8,5))
-                select_param2 = st.selectbox("Select parameter:",options=Options,key="erserstdvdvyfd")
+        ut_select_filter_col=st.columns((8,8,1))
+        ut_select_filter_col[2].write("")
+        ut_select_filter_col[2].write("")
 
-                # to get index value of the parameter
-                ind=np.where(filter_df['parameter'] == select_param2)
-                #st.write(ind[0][0])
+        ut_select_filter_col[0].header("Update Paramter")
 
-                # to get values of columns of selected parameter
-                condition_1=filter_df.at[ind[0][0], 'condition_1']
-                condition_2=filter_df.at[ind[0][0], 'condition_2']
-                weightage_1=filter_df.at[ind[0][0], 'weightage_1']
-                sort=filter_df.at[ind[0][0], 'sort']
-                weightage_2=filter_df.at[ind[0][0], 'weightage_2']
-
-                # defaults generation for selection
-                if condition_1==o_condition_1[0]:
-                    cond_id_1=0
-                elif condition_1==o_condition_1[1]:
-                    cond_id_1=1
-                
-
-                if condition_2==o_condition_2[0]:
-                    cond_id_2=0
-                elif condition_2==o_condition_2[1]:
-                    cond_id_2=1
-                else :
-                    cond_id_2=2
-            
-
-                if sort==o_sort[0]:
-                    sort_id=0 
-                elif sort==o_sort[1]:
-                    sort_id=1
-                else:
-                    sort_id=2                   
-
-
-                ut_col=st.columns((1,1,1,1,1))
-                u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=o_condition_1,key=1,index=cond_id_1)
-                u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=o_condition_2,key=2,index=cond_id_2)
-                u_weightage_1=ut_col[2].number_input("1st Weighatge",value=weightage_1,key=2)
-                u_sort=ut_col[3].selectbox("Select sort Condition",options=o_sort,key=3,index=sort_id)
-                u_weightage_2=ut_col[4].number_input("2nd Weightage",value=weightage_2,key=2)
+        ut_selected_filter_name=ut_select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'],key='update_tab')
+        if ut_select_filter_col[2].button("🔍",key='ut_select_filter_col'):
+            st.session_state['ut_selected_mf_filter_name']=ut_selected_filter_name
+            st.session_state['ut_selected_mf_filter_df'],st.session_state['ut_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['ut_selected_mf_filter_name'])
+            st.experimental_rerun()            
 
             
-                if 'temp_df3' not in st.session_state:
-                    st.session_state.temp_df3=pd.DataFrame({'parameter': [], 'condition_1': [],
-                            'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
+        ut_filter_test_df=st.session_state['ut_selected_mf_filter_df'].copy()
 
-                updf_bcol=st.columns((1,10,1))
+        Options=st.session_state['ut_selected_mf_filter_df']['parameter']
+        o_condition_1=['Average','-']
+        o_condition_2=['Above Average','Below Average','Gold']
+        o_sort=['Top 5','Bottom 5','Others']
+        conditions=['>', '<', '=']
+        results=[-1, 1]
 
-                filter_test_df.at[ind[0][0], 'condition_1'] = u_condition_1
-                filter_test_df.at[ind[0][0], 'condition_2'] = u_condition_2
-                filter_test_df.at[ind[0][0], 'weightage_1'] = u_weightage_1
-                filter_test_df.at[ind[0][0], 'sort'] = u_sort
-                filter_test_df.at[ind[0][0], 'weightage_2'] = u_weightage_2
-                            
-                
-                if updf_bcol[0].button("Update"):
-                    selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
-                            'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
+        new_col=st.columns((15,8,5))
+        ut_mf_select_param2 = st.selectbox("Select parameter:",options=Options,key="ut_mf_select_param2")
 
-                    #ignore_index=True    
-                    st.session_state.temp_df3=st.session_state.temp_df3.append(selection, ignore_index=True)
-                    filter_test_df.index = np.arange(1, len(filter_test_df) + 1)
-                    #st.table(test_df.style.set_table_styles(styles).apply(lambda x: ['background: yellow' if x.name==ind[0][0]+1 else'' for i in x],axis=1))   
-                    #st.experimental_rerun()
-                    st.session_state.temp_df3.index = np.arange(1, len(st.session_state.temp_df3) + 1)
+        # to get index value of the parameter
+        ind=np.where(ut_filter_test_df['parameter'] == ut_mf_select_param2)
+        #st.write(ind[0][0])
 
-                    for i in range(len(st.session_state.temp_df3)):
-                        #st.write(st.session_state.temp_df.iloc[[i]])
-                        upd_df=st.session_state.temp_df3.iloc[[i]]
+        # to get values of columns of selected parameter
+        condition_1=ut_filter_test_df.at[ind[0][0], 'condition_1']
+        condition_2=ut_filter_test_df.at[ind[0][0], 'condition_2']
+        weightage_1=ut_filter_test_df.at[ind[0][0], 'weightage_1']
+        sort=ut_filter_test_df.at[ind[0][0], 'sort']
+        weightage_2=ut_filter_test_df.at[ind[0][0], 'weightage_2']
 
-                        condition__1=str(upd_df['condition_1'][i+1])
-                        condition__2=str(upd_df['condition_2'][i+1])
-                        weightage__1=float(upd_df['weightage_1'][i+1])
-                        weightage__2=float(upd_df['weightage_2'][i+1])
-                        sort__=str(upd_df['sort'][i+1])
-                        
-                        update_q="UPDATE "+mf_filter_table+" SET condition_1 = '"+str(condition__1)+\
-                            "', condition_2 = '"+str(condition__2)+"', weightage_1 = '"+str(weightage__1)+\
-                            "', weightage_2 = '"+str(weightage__2)+"', sort = '"+str(sort__)+"' WHERE parameter='"+select_param2+"'"
-                        
-                        #'fmlxgnx,;v.b x[lmkn kpZ<G
-                        sq_cur.execute(update_q)
-                        st.success("Filter Update")
-                        st.session_state.temp_df3.drop(st.session_state.temp_df3.index, inplace=True)
-                        time.sleep(2)
-                        st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                        st.experimental_rerun()
+        # defaults generation for selection
+        if condition_1==o_condition_1[0]:
+            cond_id_1=0
+        elif condition_1==o_condition_1[1]:
+            cond_id_1=1
+        
 
-                if updf_bcol[2].button("Delete"):
-                    #DELETE FROM master_filter WHERE date_time = "2022-09-05 06:46:14" and `user`="chetan" and `name`="new" and `parameter_name`="EPS"
-                    del_row = "DELETE FROM " + mf_filter_table +" WHERE parameter='"+select_param2+"'"
-                    sq_cur.execute(del_row)
-                    st.success("Deleted..")
-                    time.sleep(2)
-                    st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                    st.experimental_rerun()
+        if condition_2==o_condition_2[0]:
+            cond_id_2=0
+        elif condition_2==o_condition_2[1]:
+            cond_id_2=1
+        else :
+            cond_id_2=2
+    
 
-                # show filter
-                #with st.expander("Show Filter"):
-                #if st.checkbox("Show Filter",key=2):
-                st.markdown("#### My Filter:")
-                    #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                st._legacy_dataframe(filter_df,height=1000)
-                    #filter_show_q="SELECT * FROM " + mf_filter_table
-                    #filter_df=pd.read_sql(filter_show_q,sq_conn)
-                    #st._legacy_dataframe(filter_df,height=1000)
+        if sort==o_sort[0]:
+            sort_id=0 
+        elif sort==o_sort[1]:
+            sort_id=1
+        else:
+            sort_id=2                   
+
+
+        ut_col=st.columns((1,1,1,1,1))
+        u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=o_condition_1,key=1,index=cond_id_1)
+        u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=o_condition_2,key=2,index=cond_id_2)
+        u_weightage_1=ut_col[2].number_input("1st Weighatge",value=weightage_1,key=2)
+        u_sort=ut_col[3].selectbox("Select sort Condition",options=o_sort,key=3,index=sort_id)
+        u_weightage_2=ut_col[4].number_input("2nd Weightage",value=weightage_2,key=2)
 
     
+        if 'ut_temp_df3' not in st.session_state:
+            st.session_state.ut_temp_df3=pd.DataFrame({'parameter': [], 'condition_1': [],
+                    'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
+
+        updf_bcol=st.columns((1,10,1))
+
+        ut_filter_test_df.at[ind[0][0], 'condition_1'] = u_condition_1
+        ut_filter_test_df.at[ind[0][0], 'condition_2'] = u_condition_2
+        ut_filter_test_df.at[ind[0][0], 'weightage_1'] = u_weightage_1
+        ut_filter_test_df.at[ind[0][0], 'sort'] = u_sort
+        ut_filter_test_df.at[ind[0][0], 'weightage_2'] = u_weightage_2
+                    
+        
+        if updf_bcol[0].button("Update"):
+            selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
+                    'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
+
+            st.session_state.ut_temp_df3=st.session_state.ut_temp_df3.append(selection, ignore_index=True)
+            ut_filter_test_df.index = np.arange(1, len(ut_filter_test_df) + 1)
+           
+            st.session_state.ut_temp_df3.index = np.arange(1, len(st.session_state.ut_temp_df3) + 1)
+
+            for i in range(len(st.session_state.ut_temp_df3)):
+                #st.write(st.session_state.temp_df.iloc[[i]])
+                upd_df=st.session_state.ut_temp_df3.iloc[[i]]
+
+                condition__1=str(upd_df['condition_1'][i+1])
+                condition__2=str(upd_df['condition_2'][i+1])
+                weightage__1=float(upd_df['weightage_1'][i+1])
+                weightage__2=float(upd_df['weightage_2'][i+1])
+                sort__=str(upd_df['sort'][i+1])
+                
+                update_q="UPDATE "+mf_filter_table+" SET condition_1 = '"+str(condition__1)+\
+                    "', condition_2 = '"+str(condition__2)+"', weightage_1 = '"+str(weightage__1)+\
+                    "', weightage_2 = '"+str(weightage__2)+"', sort = '"+str(sort__)+"' WHERE parameter='"+ut_mf_select_param2+"'"
+                
+                #'fmlxgnx,;v.b x[lmkn kpZ<G
+                sq_cur.execute(update_q)
+                st.success("Filter Updated")
+                st.session_state.ut_temp_df3.drop(st.session_state.ut_temp_df3.index, inplace=True)
+                time.sleep(1)
+                st.session_state['ut_selected_mf_filter_df'],st.session_state['ut_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['ut_selected_mf_filter_name'])
+                st.experimental_rerun()
+
+        if updf_bcol[2].button("Delete"):
+        #  Delete query:DELETE FROM master_filter WHERE date_time = "2022-09-05 06:46:14" and `user`="chetan" and `name`="new" and `parameter_name`="EPS"
+            mf_ut_del_row = "DELETE FROM " + mf_filter_table +" WHERE date_time='"+str(st.session_state['ut_selected_mf_filter_date'])+"' and username='"+st.session_state["username"]+"' and name='"+st.session_state['ut_selected_mf_filter_name']+"' and parameter_name='"+ut_mf_select_param2+"'"
+            with st.spinner("Deleting...."):
+                time.sleep(1)
+                try:
+                    sq_cur.execute(text(mf_ut_del_row))
+                    st.success("Deleted...")
+                    time.sleep(1)
+                    #st.experimental_rerun()
+                except:
+                    st.error("Error to delete...")
+                    st.warning("please try again....")
+                    time.sleep(1)
+                st.session_state['ut_selected_mf_filter_df'],st.session_state['ut_selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['ut_selected_mf_filter_name'])
+                st.experimental_rerun()
+        # show filter
+        if len(st.session_state['ut_selected_mf_filter_df']):
+            st.subheader(st.session_state['ut_selected_mf_filter_name'])
+            st.write('Created at:'+str(st.session_state['ut_selected_mf_filter_date']))
+            with st.expander("Show filter",expanded=True):
+                st._legacy_dataframe(st.session_state['ut_selected_mf_filter_df'],height=1000)
+        else:
+            st.info('Empty...')
+    
+
 _=""" Filter process """
         #1) Add average parameters into one column of rolling returns
         #2) Average out the multiple years of same paramaters in good funds df in one single parameter coulumn name taken from filter
@@ -913,103 +1042,120 @@ process_dic=filter_df.set_index('parameter').to_dict(orient='index')
 _=""" 4) Apply filter """
 # 4.1) Apply filter
 # layout
-apply_col=st.columns((5,2,5))
-apply_cheak=apply_col[1].button("Apply",on_click=Apply_callback)
+with filter_tab:
+    apply_col=st.columns((5,2,5))
+    apply_cheak=apply_col[1].button("Apply",key='mf_filter_apply')
 
-#apply_only_cheak=apply_col[2].checkbox("Apply Only")
+    #apply_only_cheak=apply_col[2].checkbox("Apply Only")
 
-if (apply_cheak or st.session_state['Apply']):
-    try:
-        st.session_state['total_weightage']=mutual_fund_filter(total_data_df,process_dic)
-        #st.subheader("st.session_state['total_weightage']")
-        #st._legacy_dataframe(st.session_state['total_weightage'])
-        show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal Name'],inplace = True)
-    except:
-        st.warning("Sorry something were wrong!!!")  
-        st.error("Plese check your files...!!")
-        st.stop()  
+    if apply_cheak:
+        try:
+            st.session_state['total_weightage']=mutual_fund_filter(total_data_df,process_dic)
+            show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal Name'],inplace = True)
+            first_name_df=first_name(total_data_df['Legal_Name'].to_list())
+            st.session_state['total_data_df']=pd.concat([st.session_state['total_weightage'],first_name_df,total_data_df.drop(['Legal_Name','ISIN','index'],axis=1)],axis=1)
+            st.session_state['sorted_total_weightage_df']=st.session_state['total_weightage'].sort_values(by='Result',ascending=False)
+            st.session_state['sorted_total_data_df']=st.session_state['total_data_df'].sort_values(by='Result', ascending=False)
+                        
+        except:
+            st.warning("Sorry something were wrong!!!")  
+            st.error("Plese check your files and try again..!!")
+            st.stop()  
+        st.experimental_rerun()
 
 
+with filter_tab:
+    _=""" Filter Output """
+    #len(st.session_state['total_weightage']
+    if st.session_state['total_data_df']:
 
-_=""" Filter Output """
-#len(st.session_state['total_weightage']
-if (apply_cheak or st.session_state['Apply']):
+        # layout tabs: 1) Dashboard for charts 2) report for download
+        dashboard_tab,report_tab=st.tabs(["Dashboard",'Report'])
 
-    # layout tabs: 1) Dashboard for charts 2) report for download
-    dashboard_tab,report_tab=st.tabs(["Dashboard",'Report'])
-    
-    # Build a total data table
-    # create first name of leagal name column and atach with total data df
-    first_name_df=first_name(total_data_df['Legal_Name'].to_list())
+        if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
+            st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
 
-    st.session_state['total_data_df']=pd.concat([st.session_state['total_weightage'],first_name_df,total_data_df.drop(['Legal_Name','ISIN','index'],axis=1)],axis=1)
-    
-    #sorted_dataframe
-    st.session_state['sorted_total_weightage_df']=st.session_state['total_weightage'].sort_values(by='Result',ascending=False)
-    st.session_state['sorted_total_data_df']=st.session_state['total_data_df'].sort_values(by='Result', ascending=False)
-    #st.write(st.session_state['sorted_total_weightage_df'])
-    #st._legacy_dataframe(st.session_state['sorted_total_data_df'])
-    # Dashboard tab designing
-    with dashboard_tab:
-        title_col=st.columns((4,5))
-        title_col[0].markdown('### Dashboard')
-        title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
+        if 'show_df_TAMM'
 
-        # Create required data for Output layout: Dashboard and report
-        template='plotly_white'   
-        hover_data=['Legal Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard Deviation', 'Annual Return', 'SIP Return', 'Sharpe Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
-        barmode='group'
-        text_auto='.2s'
-        
+        def mf_dashboard_data():
+            template='plotly_white'   
+            hover_data=['Legal Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard Deviation', 'Annual Return', 'SIP Return', 'Sharpe Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
+            barmode='group'
+            text_auto='.2s'
+            with st.spinner("Preparing Dashboard......"):
+                try:
+                    st.session_state['total_data_df_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
+                    st.session_state['total_assets_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+                    st.session_state['Assets_Holdings_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+                    st.success("Dashboard generated...")
+                    time.sleep(1)
+                except:
+                    st.error("Error to generated dashboard")
+                    st.warning("Please apply filter again!..")
+                    time.sleep(1)
 
-        _=""" 1) Top list"""
-        Funds_Weightage_info_col=st.columns((4,10,4))
-        # 1.Sorted total data df
-        
-        Funds_Weightage_col=st.columns((1))
-        total_data_df_chart=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
-        Funds_Weightage_col[0].plotly_chart(total_data_df_chart, use_container_width=True)
+        def mf_report_data():
+            with st.spinner("Preparing Report....."):
+                try:
 
-        red_flag_charts=st.columns((1,1))
-        #2.Total assets red flag chart
-        total_assets=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-        red_flag_charts[0].plotly_chart(total_assets, use_container_width=True)
 
-        #3.% Assets in Top 10 Holdings red flag chart
-        Assets_Holdings=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-        red_flag_charts[1].plotly_chart(Assets_Holdings, use_container_width=True)
+        with dashboard_tab:
+            title_col=st.columns((4,5))
+            title_col[0].markdown('### Dashboard')
+            title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
+
+            # Create required data for Output layout: Dashboard and report
+
+            
+
+            _=""" 1) Top list"""
+            Funds_Weightage_info_col=st.columns((4,10,4))
+            # 1.Sorted total data df
+            
+            Funds_Weightage_col=st.columns((1))
+            #total_data_df_chart=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
+            Funds_Weightage_col[0].plotly_chart(st.session_state['total_data_df_chart'], use_container_width=True)
+
+            red_flag_charts=st.columns((1,1))
+            #2.Total assets red flag chart
+            #total_assets=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            red_flag_charts[0].plotly_chart(st.session_state['total_assets_chart'], use_container_width=True)
+
+            #3.% Assets in Top 10 Holdings red flag chart
+            #Assets_Holdings=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            red_flag_charts[1].plotly_chart(st.session_state['Assets_Holdings_chart'], use_container_width=True)
+                    
+
                 
+                
+        with report_tab:
+            title_col=st.columns((4,5))
+            title_col[0].markdown('### Report')
+            title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
 
+            show_df_TAMM =st.session_state['sorted_total_data_df'][['ISIN','Legal Name','Total_Assets_?MM']]
+            show_df_AITH=st.session_state['sorted_total_data_df'][['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
+
+            #export button
             
+            exp_but_col=st.columns((5,5,2))
             
-    with report_tab:
-        title_col=st.columns((4,5))
-        title_col[0].markdown('### Report')
-        title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
+            #total_weightage_styled=total_sorted.style.apply(lambda x: ['background: lightgreen' if x.name in hi_list else '' for i in x], axis=1).apply(lambda x: ['background: lightblue' if x.name in hi_list2 else '' for i in x], axis=1)
+            wt_col=st.columns((5,3,5))
+            wt_col[1].subheader("Weightage Table")
+            st._legacy_dataframe(st.session_state['sorted_total_weightage_df'])
 
-        show_df_TAMM =st.session_state['sorted_total_data_df'][['ISIN','Legal Name','Total_Assets_?MM']]
-        show_df_AITH=st.session_state['sorted_total_data_df'][['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
+            exp_but_col[2].download_button("📥Export",key=2, data=to_excel(st.session_state['sorted_total_weightage_df']), file_name='weightage_'+selected_file_name_1+'.xlsx')
 
-        #export button
+            rf_col=st.columns((1,1))
+
+            with rf_col[0]:
+                ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
+                st.subheader("Total Assets ?MM")
+                st._legacy_dataframe(show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1))
+            
+            with rf_col[1]:
+                ta_rf_l2=red_flag_ind(show_df_AITH.head(5),parameter='%_Assets_in_Top_10_Holdings',consentration='High')
+                st.subheader("% Assets in Top 10 Holdings")
+                st._legacy_dataframe(show_df_AITH.drop("ISIN",axis=1).style.apply(lambda x: ['background: lightblue' if x.name in ta_rf_l2 else '' for i in x], axis=1))
         
-        exp_but_col=st.columns((5,5,2))
-        
-        #total_weightage_styled=total_sorted.style.apply(lambda x: ['background: lightgreen' if x.name in hi_list else '' for i in x], axis=1).apply(lambda x: ['background: lightblue' if x.name in hi_list2 else '' for i in x], axis=1)
-        wt_col=st.columns((5,3,5))
-        wt_col[1].subheader("Weightage Table")
-        st._legacy_dataframe(st.session_state['sorted_total_weightage_df'])
-
-        exp_but_col[2].download_button("📥Export",key=2, data=to_excel(st.session_state['sorted_total_weightage_df']), file_name='weightage_'+selected_file_name_1+'.xlsx')
-
-        rf_col=st.columns((1,1))
-
-        with rf_col[0]:
-            ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
-            st.subheader("Total Assets ?MM")
-            st._legacy_dataframe(show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1))
-        
-        with rf_col[1]:
-            ta_rf_l2=red_flag_ind(show_df_AITH.head(5),parameter='%_Assets_in_Top_10_Holdings',consentration='High')
-            st.subheader("% Assets in Top 10 Holdings")
-            st._legacy_dataframe(show_df_AITH.drop("ISIN",axis=1).style.apply(lambda x: ['background: lightblue' if x.name in ta_rf_l2 else '' for i in x], axis=1))
-    

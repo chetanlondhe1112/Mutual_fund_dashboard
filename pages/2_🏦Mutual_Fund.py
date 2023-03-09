@@ -65,11 +65,27 @@ text_auto='.2s'
 
 _=""" title declaration """
 
-
-_=""" main Layout designing """
-
+st.title("Mutual Fund Filter")
 
 _=""" Layout designing """
+
+layout_col=st.columns((5,1,5,1))
+selct_box_col=st.columns((8,1,8,1))
+selct_box_col[1].write('')
+selct_box_col[1].write('')
+selct_box_col[3].write('')
+selct_box_col[3].write('')
+select_name_col=st.columns((5,2,5,2))
+show_df_col=st.columns((5,5))
+
+#good funds columns
+merge_but_col=st.columns((5,1,5))
+#name_col=st.columns((2,1,2))
+info_col=st.columns((5,1,5))
+show_df_col2=st.columns((1))
+
+#filter table
+filter_col=st.columns((1))
 
 
 _="""credentials declaration """
@@ -477,7 +493,64 @@ def mutual_fund_filter(test_df,process_dic):
 
     return total_weightage
 
-   
+
+def mf_apply_filter(total_df,process_dict):
+    with st.spinner("Applying filter..."):
+        time.sleep(1)
+        try:
+            st.session_state['total_weightage']=mutual_fund_filter(total_df,process_dict)
+            show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal Name'],inplace = True)
+            first_name_df=first_name(total_data_df['Legal_Name'].to_list())
+            st.session_state['total_data_df']=pd.concat([st.session_state['total_weightage'],first_name_df,total_data_df.drop(['Legal_Name','ISIN','index'],axis=1)],axis=1)
+            st.session_state['sorted_total_weightage_df']=st.session_state['total_weightage'].sort_values(by='Result',ascending=False)
+            st.session_state['sorted_total_data_df']=st.session_state['total_data_df'].sort_values(by='Result', ascending=False)
+            st.success("Filter applied successfully")
+            time.sleep(1)
+        except:
+            st.error("Error to apply filter..")
+            st.warning("Please apply filter again!..")
+            st.stop()            
+
+
+
+def mf_dashboard_data(sorted_total_df):
+    template='plotly_white'   
+    hover_data=['Legal Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard Deviation', 'Annual Return', 'SIP Return', 'Sharpe Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
+    barmode='group'
+    text_auto='.2s'
+    with st.spinner("Preparing Dashboard......"):
+        try:
+            st.session_state['total_data_df_chart']=df_to_chart(form='Bar',df=sorted_total_df,title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
+            st.session_state['total_assets_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            st.session_state['Assets_Holdings_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            st.success("Dashboard generated...")
+            time.sleep(1)
+            return 1
+        except:
+            st.error("Error to generated dashboard")
+            st.warning("Please apply filter again!..")
+            time.sleep(1)
+            return 0
+
+def mf_report_data(sorted_total_df,sorted_weightage_df):
+    with st.spinner("Preparing Report....."):
+        show_df_TAMM =sorted_total_df[['ISIN','Legal Name','Total_Assets_?MM']]
+        show_df_AITH=sorted_total_df[['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
+        try:
+            st.session_state['analysis_report']=sorted_weightage_df
+            ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
+            st.session_state['rf_TAMM_df']=show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1)
+            ta_rf_l2=red_flag_ind(show_df_AITH.head(5),parameter='%_Assets_in_Top_10_Holdings',consentration='High')
+            st.session_state['rf_AITH_df']=show_df_AITH.drop("ISIN",axis=1).style.apply(lambda x: ['background: lightblue' if x.name in ta_rf_l2 else '' for i in x], axis=1)
+            st.success("Report Generated...")
+            time.sleep(1)
+        except:
+            st.error("Error to generated report")
+            st.warning("Please apply filter again!..")
+            time.sleep(1)
+
+
+
 _="""
 
 Sessionstate variables
@@ -549,10 +622,19 @@ if 'show_total_weightage_table' not in st.session_state:
 
 # Final total table
 if 'total_data_df' not in st.session_state:
-    st.session_state['total_data_df']=0
+    st.session_state['total_data_df']=pd.DataFrame()
 
 if 'sorted_total_data_df' not in st.session_state:
     st.session_state['sorted_total_data_df']=0
+
+if 'dash_generated' not in st.session_state:
+    st.session_state['dash_generated']=0
+
+if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
+    st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
+
+if 'analysis_report'and 'rf_TAMM_df' and 'rf_AITH_df' not in st.session_state:
+    st.session_state['analysis_report'],st.session_state['rf_TAMM_df'],st.session_state['rf_AITH_df']=0,0,0
 
 
 _="""  
@@ -572,29 +654,6 @@ _=""" Connection establishment """
 
 
 
-_=""" title declaration """
-
-st.title("Mutual Fund Filter")
-
-_=""" Layout designing """
-
-layout_col=st.columns((5,1,5,1))
-selct_box_col=st.columns((8,1,8,1))
-selct_box_col[1].write('')
-selct_box_col[1].write('')
-selct_box_col[3].write('')
-selct_box_col[3].write('')
-select_name_col=st.columns((5,2,5,2))
-show_df_col=st.columns((5,5))
-
-#good funds columns
-merge_but_col=st.columns((5,1,5))
-#name_col=st.columns((2,1,2))
-info_col=st.columns((5,1,5))
-show_df_col2=st.columns((1))
-
-#filter table
-filter_col=st.columns((1))
 
 
 _="""1.Fetch Files:Get tables from the database table """
@@ -1047,115 +1106,84 @@ with filter_tab:
     apply_cheak=apply_col[1].button("Apply",key='mf_filter_apply')
 
     #apply_only_cheak=apply_col[2].checkbox("Apply Only")
-
     if apply_cheak:
         try:
-            st.session_state['total_weightage']=mutual_fund_filter(total_data_df,process_dic)
-            show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal Name'],inplace = True)
-            first_name_df=first_name(total_data_df['Legal_Name'].to_list())
-            st.session_state['total_data_df']=pd.concat([st.session_state['total_weightage'],first_name_df,total_data_df.drop(['Legal_Name','ISIN','index'],axis=1)],axis=1)
-            st.session_state['sorted_total_weightage_df']=st.session_state['total_weightage'].sort_values(by='Result',ascending=False)
-            st.session_state['sorted_total_data_df']=st.session_state['total_data_df'].sort_values(by='Result', ascending=False)
-                        
+            mf_apply_filter(total_df=total_data_df,process_dict=process_dic)
+            st.session_state['dash_generated']=mf_dashboard_data(sorted_total_df=st.session_state['sorted_total_data_df'])
+            mf_report_data(sorted_total_df=st.session_state['sorted_total_data_df'],sorted_weightage_df=st.session_state['sorted_total_weightage_df'])   
         except:
             st.warning("Sorry something were wrong!!!")  
             st.error("Plese check your files and try again..!!")
-            st.stop()  
+            st.stop()
+        time.sleep(1)  
         st.experimental_rerun()
 
 
 with filter_tab:
     _=""" Filter Output """
     #len(st.session_state['total_weightage']
-    if st.session_state['total_data_df']:
+    if len(st.session_state['total_data_df']):
 
         # layout tabs: 1) Dashboard for charts 2) report for download
         dashboard_tab,report_tab=st.tabs(["Dashboard",'Report'])
 
-        if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
-            st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
-
-        if 'show_df_TAMM'
-
-        def mf_dashboard_data():
-            template='plotly_white'   
-            hover_data=['Legal Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard Deviation', 'Annual Return', 'SIP Return', 'Sharpe Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
-            barmode='group'
-            text_auto='.2s'
-            with st.spinner("Preparing Dashboard......"):
-                try:
-                    st.session_state['total_data_df_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
-                    st.session_state['total_assets_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-                    st.session_state['Assets_Holdings_chart']=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-                    st.success("Dashboard generated...")
-                    time.sleep(1)
-                except:
-                    st.error("Error to generated dashboard")
-                    st.warning("Please apply filter again!..")
-                    time.sleep(1)
-
-        def mf_report_data():
-            with st.spinner("Preparing Report....."):
-                try:
-
+        
 
         with dashboard_tab:
-            title_col=st.columns((4,5))
-            title_col[0].markdown('### Dashboard')
-            title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
+            if st.session_state['dash_generated']:
+                title_col=st.columns((4,5))
+                title_col[0].header("Dashboard")
+                title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
 
-            # Create required data for Output layout: Dashboard and report
+                # Create required data for Output layout: Dashboard and report
 
-            
+                _=""" 1) Top list"""
+                Funds_Weightage_info_col=st.columns((4,10,4))
+                # 1.Sorted total data df
+                
+                Funds_Weightage_col=st.columns((1))
+                #total_data_df_chart=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
+                Funds_Weightage_col[0].plotly_chart(st.session_state['total_data_df_chart'], use_container_width=True)
 
-            _=""" 1) Top list"""
-            Funds_Weightage_info_col=st.columns((4,10,4))
-            # 1.Sorted total data df
-            
-            Funds_Weightage_col=st.columns((1))
-            #total_data_df_chart=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'],title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
-            Funds_Weightage_col[0].plotly_chart(st.session_state['total_data_df_chart'], use_container_width=True)
+                red_flag_charts=st.columns((1,1))
+                #2.Total assets red flag chart
+                #total_assets=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+                red_flag_charts[0].plotly_chart(st.session_state['total_assets_chart'], use_container_width=True)
 
-            red_flag_charts=st.columns((1,1))
-            #2.Total assets red flag chart
-            #total_assets=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-            red_flag_charts[0].plotly_chart(st.session_state['total_assets_chart'], use_container_width=True)
-
-            #3.% Assets in Top 10 Holdings red flag chart
-            #Assets_Holdings=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-            red_flag_charts[1].plotly_chart(st.session_state['Assets_Holdings_chart'], use_container_width=True)
-                    
+                #3.% Assets in Top 10 Holdings red flag chart
+                #Assets_Holdings=df_to_chart(form='Bar',df=st.session_state['sorted_total_data_df'].head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+                red_flag_charts[1].plotly_chart(st.session_state['Assets_Holdings_chart'], use_container_width=True)
+            else:
+                st.error("Sorry,error to generate dashboard!!!")            
 
                 
                 
         with report_tab:
             title_col=st.columns((4,5))
-            title_col[0].markdown('### Report')
+            title_col[0].header("Report")
             title_col[1].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
 
-            show_df_TAMM =st.session_state['sorted_total_data_df'][['ISIN','Legal Name','Total_Assets_?MM']]
-            show_df_AITH=st.session_state['sorted_total_data_df'][['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
-
             #export button
-            
             exp_but_col=st.columns((5,5,2))
             
             #total_weightage_styled=total_sorted.style.apply(lambda x: ['background: lightgreen' if x.name in hi_list else '' for i in x], axis=1).apply(lambda x: ['background: lightblue' if x.name in hi_list2 else '' for i in x], axis=1)
+            
             wt_col=st.columns((5,3,5))
             wt_col[1].subheader("Weightage Table")
-            st._legacy_dataframe(st.session_state['sorted_total_weightage_df'])
-
-            exp_but_col[2].download_button("📥Export",key=2, data=to_excel(st.session_state['sorted_total_weightage_df']), file_name='weightage_'+selected_file_name_1+'.xlsx')
+            st._legacy_dataframe(st.session_state['analysis_report'])
+            exp_but_col[2].download_button("📥Export",key=2, data=to_excel(st.session_state['analysis_report']), file_name='weightage_'+st.session_state['source_file1']+'.xlsx')
 
             rf_col=st.columns((1,1))
 
             with rf_col[0]:
-                ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
                 st.subheader("Total Assets ?MM")
-                st._legacy_dataframe(show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1))
+                st._legacy_dataframe(st.session_state['rf_TAMM_df'])
+                st.download_button("📥Export",key=3, data=to_excel(st.session_state['rf_TAMM_df']), file_name='rf_TA_'+st.session_state['source_file1']+'.xlsx')
+
             
             with rf_col[1]:
-                ta_rf_l2=red_flag_ind(show_df_AITH.head(5),parameter='%_Assets_in_Top_10_Holdings',consentration='High')
                 st.subheader("% Assets in Top 10 Holdings")
-                st._legacy_dataframe(show_df_AITH.drop("ISIN",axis=1).style.apply(lambda x: ['background: lightblue' if x.name in ta_rf_l2 else '' for i in x], axis=1))
+                st._legacy_dataframe(st.session_state['rf_AITH_df'])
+                st.download_button("📥Export",key=4, data=to_excel(st.session_state['rf_AITH_df']), file_name='rf_AITH_'+st.session_state['source_file1']+'.xlsx')
+
         

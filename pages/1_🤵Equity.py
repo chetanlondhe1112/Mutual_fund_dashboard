@@ -61,7 +61,7 @@ text_auto='.2s'
 
 
 _=""" title declaration """
-st.title("🧮Master Filter")
+st.title("🤵 Equity Filter 🧮")
 
 _=""" main Layout designing """
 mf_col1=st.columns((5,4,1))
@@ -806,7 +806,7 @@ _="""
 # 1.2) Cheaks sheets are available or not
 if len(st.session_state['users_sheets_names'])!=0:
 
-    mf_col1[0].header('My Sheets')       
+    mf_col1[0].header('📁 My Sheets')       
     mf_col1[2].write('')    
     mf_col1[2].write('')    
 
@@ -817,10 +817,10 @@ if len(st.session_state['users_sheets_names'])!=0:
 
     rem_us_parameter_list = rem_under_scr_col_list(st.session_state['parameters_list'])
     
-    mf_col1[0].subheader(st.session_state['selected_sheet_name'])
-    mf_col1[1].write('Created at:'+str(st.session_state['selected_sheet_datetime']))
+    mf_col1[0].subheader('📄 {}'.format(st.session_state['selected_sheet_name']))
+    mf_col1[1].write('📅 Created at:'+str(st.session_state['selected_sheet_datetime']))
 
-    with st.expander("Show my sheet"):
+    with st.expander("👀 Show my sheet"):
         st.write("{} results found:".format(len(st.session_state['selected_sheet_df'])))
         show_df=st.session_state['selected_sheet_df'].copy()
         st._arrow_dataframe(pagination(show_df,key_name='sheet',index_param='Name').style.highlight_null(null_color="red"))
@@ -829,10 +829,12 @@ if len(st.session_state['users_sheets_names'])!=0:
     #st.markdown("---")
     #with tab3:
         #st.info("Filter removed")
-    tab1,tab2,tab3=st.tabs(["My Filter","Create Filter","Update Filter"])
+    tab1,tab2,tab3=st.tabs(["🧮 My Filter","👨‍🔧 Create Filter","🔨 Update Filter"])
   
     with tab2:
-        fil_col=st.columns((4,10,4))
+        fil_col=st.columns((8,10,4))
+        fil_col[0].header('👨‍🔧 Create Filter')
+
         dem_f_df=st.session_state['users_filter_names']
         #st.write(list(dem_f_df.drop_duplicates()['name']))
         if fil_col[2].button("📤Upload Demo Filter"):
@@ -864,7 +866,7 @@ if len(st.session_state['users_sheets_names'])!=0:
                                                     'value1': [], 'result1': [], 'condition2': [], 'value2': [],
                                                     'result2': []})
 
-        fil_col[0].subheader("Create Filter:")
+        #fil_col[0].subheader("Create Filter:")
         name=st.text_input("Name this filter")
         select_param = st.selectbox("Select parameters:", options=rem_us_parameter_list)
         col1, col2, col3 = st.columns(3)
@@ -936,7 +938,7 @@ if len(st.session_state['users_sheets_names'])!=0:
 
 
         updf=st.columns((5,5))
-        updf[0].subheader("Update Filters:")
+        updf[0].header("🔨 Update Filter")
             
         if len(st.session_state['users_filter_names'])>0:
             
@@ -1158,7 +1160,7 @@ if len(st.session_state['users_sheets_names'])!=0:
 
             #st.subheader("My Filters:") 
             fil_col=st.columns((5,4,1))
-            fil_col[0].header('My Filters')   
+            fil_col[0].header('🧰 My Filters')   
             fil_col[2].write('')    
             fil_col[2].write('')    
 
@@ -1169,14 +1171,14 @@ if len(st.session_state['users_sheets_names'])!=0:
                 if fil_col[2].button("🔍",key='selected_filter_name_but'):
                     button_selected_filter_name(selected_filter_name=selected_filter_name,table=filter_table,username=st.session_state["username"],connection=sq_conn)
                 
-                fil_col[0].subheader(st.session_state['selected_filter_name'])
-                fil_col[1].write('Created at:'+str(st.session_state['selected_filter_date']))
+                fil_col[0].subheader('🧮 {}'.format(st.session_state['selected_filter_name']))
+                fil_col[1].write('📅 Created at:'+str(st.session_state['selected_filter_date']))
 
             else:
                 st.error("Sorry, you didn't have created any filters!")
                 st.stop()            
 
-            with st.expander("Show Filter"):
+            with st.expander("👀 Show Filter"):
                 st.write("{} results found:".format(len(st.session_state['selected_filter_df'])))
                 filter_lc=st.columns((10,10,2))
 

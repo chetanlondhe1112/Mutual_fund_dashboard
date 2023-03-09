@@ -106,10 +106,11 @@ Function Definations
 
 _=""" Supportive function """
 
-def sheet_names(_username,table_name,_connection):
+#   1.function to fetch sheet_names
+def sheet_names(username,table_name,connection):
     try:
-        file_names_q='SELECT sheet_name FROM ' + table_name +' Where username="'+_username+'"'
-        file_names_df=pd.read_sql_query(file_names_q,_connection).drop_duplicates()
+        file_names_q='SELECT sheet_name FROM ' + table_name +' Where username="'+username+'"'
+        file_names_df=pd.read_sql_query(file_names_q,connection).drop_duplicates()
         return file_names_df
     except:
         st.error("Something were wrong......")
@@ -119,10 +120,11 @@ def sheet_names(_username,table_name,_connection):
             st.warning("Please check connection.....")
             st.experimental_rerun()
 
-def filter_names(_username,table_name,_connection):
+#   2.function to fetch filter names
+def filter_names(username,table_name,connection):
     try:
-        file_names_q='SELECT name FROM ' + table_name +' Where username="'+_username+'"'
-        file_names_df=pd.read_sql_query(file_names_q,_connection).drop_duplicates()
+        file_names_q='SELECT name FROM ' + table_name +' Where username="'+username+'"'
+        file_names_df=pd.read_sql_query(file_names_q,connection).drop_duplicates()
         return file_names_df
     except:
         st.error("Something were wrong......")
@@ -132,11 +134,12 @@ def filter_names(_username,table_name,_connection):
             st.warning("Please check connection.....")
             st.experimental_rerun()
 
-def fetch_filter(table_name,_connection,name,_username):
+#   3.function to fetch filter
+def fetch_filter(table_name,connection,name,username):
 
     try:
-        selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+_username+'" and name="'+name+'"'
-        selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all')
+        selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+username+'" and name="'+name+'"'
+        selected_file_df=pd.read_sql(selected_file_q,connection).dropna(axis=1,how='all')
         selected_file_datetime=selected_file_df['date_time'][0]
         return selected_file_df.drop(columns=['username','name','lable','date_time'],axis=1),selected_file_datetime
     except:
@@ -147,15 +150,16 @@ def fetch_filter(table_name,_connection,name,_username):
             time.sleep(2)
             st.experimental_rerun()
 
-# function to fetch table
+
+#   4.function to fetch table
 #@st.experimental_memo(show_spinner=True)
-def fetch_table(table_name,_connection,sheet_name=None,_username=None):
-    if sheet_name and _username:
+def fetch_table(table_name,connection,sheet_name=None,username=None):
+    if sheet_name and username:
         try:
-            selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+_username+'" and sheet_name="'+sheet_name+'"'
-            selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all')
+            selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+username+'" and sheet_name="'+sheet_name+'"'
+            selected_file_df=pd.read_sql(selected_file_q,connection).dropna(axis=1,how='all').dropna(axis=0,how='any')
             selected_file_datetime=selected_file_df['date_time'][0]
-            return selected_file_df.drop(columns=['username','sheet_name','lable','date_time'],axis=1),selected_file_datetime
+            return selected_file_df.drop(columns=['date_time','username','lable','sheet_name'],axis=1),selected_file_datetime
         except:
             st.error("Server lost.....")
             st.error("Please check connection.....")
@@ -166,7 +170,7 @@ def fetch_table(table_name,_connection,sheet_name=None,_username=None):
     else:
         try:        
             selected_file_q="SELECT * FROM " + table_name
-            selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all')
+            selected_file_df=pd.read_sql(selected_file_q,connection).dropna(axis=1,how='all')
             lenght_of_selected_file_df=len(selected_file_df)
             return selected_file_df,lenght_of_selected_file_df
         except:
@@ -176,9 +180,7 @@ def fetch_table(table_name,_connection,sheet_name=None,_username=None):
             time.sleep(2)
             st.experimental_rerun()
 
-
-
-# Function to execute Queries on database with validations
+#   5.Function to execute Queries on database with validations
 def query_run(query,connection):
     try:
         df=pd.read_sql_query(query,connection)
@@ -401,6 +403,7 @@ def good_funds(rr_df,main_df):
         so we going to select 'ISIN' as specific column 
         as a index for concatenating the two dataframe with base of 'ISIN'
     """
+    
     combined_sheet_df=pd.concat([main_sheet_df.set_index('ISIN'), rr_avg_quart_df.set_index('ISIN')],axis = 1).reset_index().dropna(axis=1,how='all').dropna(axis=0,how='any')
     #with st.expander("Combined Sheet"):
     #    st._legacy_dataframe(combined_sheet_df)
@@ -474,8 +477,7 @@ def mutual_fund_filter(test_df,process_dic):
 
     return total_weightage
 
-
-
+   
 _="""
 
 Sessionstate variables
@@ -483,22 +485,29 @@ Sessionstate variables
 """
 
 # Main file name & dataframe
-# fetch main file names
-main_file_names_df,length_main_file_names_df=sheet_names(mf_sheet_table,sq_conn)
-if 'main_file_name' not in st.session_state:
-    st.session_state['main_file_name']=main_file_names_df.iloc[0]['sheet_name']
+#   1.main files names
+if 'main_file_names' not in st.session_state:
+    st.session_state['main_file_names']=sheet_names(username=username,table_name=mf_sheet_table,connection=sq_conn)
 
-if 'main_file_df' not in st.session_state:
-    st.session_state['main_file_df'],length_main_file_df=fetch_table(mf_sheet_table,sheet_name=st.session_state['main_file_name'],_connection=sq_conn)
+#   2.selected main file name
+if 'selected_main_file_name' not in st.session_state:
+    st.session_state['selected_main_file_name']=st.session_state['main_file_names'].iloc[0]['sheet_name']
+
+#   3.selected main file df
+if 'selected_main_file_df' and 'selected_main_file_date' not in st.session_state:
+    st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],connection=sq_conn,username=username)
 
 # Rolling return name & dataframe
 # fetch rr file names
-rr_file_names_df,length_rr_file_names_df=sheet_names(mf_rolling_return_table,sq_conn)
-if 'rr_file_name' not in st.session_state:
-    st.session_state['rr_file_name']=rr_file_names_df.iloc[0]['sheet_name']
+#   4.rr files names
+if 'rr_file_names' not in st.session_state:
+    st.session_state['rr_file_names']=sheet_names(username=username,table_name= mf_rolling_return_table,connection= sq_conn)
 
-if 'rolling_return_file_df' not in st.session_state:
-    st.session_state['rolling_return_file_df'],length_rolling_return_file_df=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['rr_file_name'],_connection=sq_conn)
+if 'selected_rr_file_name' not in st.session_state:
+    st.session_state['selected_rr_file_name']=st.session_state['rr_file_names'].iloc[0]['sheet_name']
+
+if 'selected_rr_file_df' and 'selected_rr_file_date' not in st.session_state:
+    st.session_state['selected_rr_file_df'],st.session_state['selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['selected_rr_file_name'],connection=sq_conn,username=username)
 
 # selected file names
 if "select_main_file" not in st.session_state:
@@ -509,18 +518,24 @@ if "select_rr_file" not in st.session_state:
 
 # Good funds dataframe
 if 'good_funds_df' not in st.session_state:
-    st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['rolling_return_file_df'],main_df=st.session_state['main_file_df'])
+    st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['selected_rr_file_df'],main_df=st.session_state['selected_main_file_df'])
 
 #sourcefiles
 if 'source_file1' not in st.session_state:
-    st.session_state['source_file1']=st.session_state['main_file_name']
+    st.session_state['source_file1']=st.session_state['selected_main_file_name']
 
 if 'source_file2' not in st.session_state:
-    st.session_state['source_file2']= st.session_state['rr_file_name']
+    st.session_state['source_file2']= st.session_state['selected_rr_file_name']
 
 # filter table
-if 'filter_df' not in st.session_state:
-    st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
+if 'mf_filter_names' not in st.session_state:
+    st.session_state['mf_filter_names']=filter_names(username=username,table_name=mf_filter_table,connection=sq_conn)
+
+if 'selected_mf_filter_name' not in st.session_state:
+    st.session_state['selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
+
+if 'selected_mf_filter_df' and 'selected_mf_filter_date' not in st.session_state:
+    st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
 
 # total weightage table
 if 'total_weightage_table' not in st.session_state:
@@ -535,12 +550,15 @@ if 'show_total_weightage_table' not in st.session_state:
 # Final total table
 if 'total_data_df' not in st.session_state:
     st.session_state['total_data_df']=0
+
 if 'sorted_total_data_df' not in st.session_state:
     st.session_state['sorted_total_data_df']=0
 
 
 _="""  
-Session state Buttons__________________________________________________________________________________ 
+
+Session state Buttons
+
 """
 #Filter apply button
 if "Apply" not in st.session_state:
@@ -549,18 +567,23 @@ def Apply_callback():
     st.session_state['Apply']=True
 #if (del_col[2].button("Delete",on_click=del_callback2) or st.session_state.delete_clicked2):
 
+
 _=""" Connection establishment """
 
 
 
 _=""" title declaration """
 
-st.title("Filter:")
+st.title("Mutual Fund Filter")
 
 _=""" Layout designing """
 
 layout_col=st.columns((5,1,5,1))
-selct_box_col=st.columns((5,1,5,1))
+selct_box_col=st.columns((8,1,8,1))
+selct_box_col[1].write('')
+selct_box_col[1].write('')
+selct_box_col[3].write('')
+selct_box_col[3].write('')
 select_name_col=st.columns((5,2,5,2))
 show_df_col=st.columns((5,5))
 
@@ -580,18 +603,19 @@ _=""" table of main file """
 #subheader for main files
 layout_col[0].header("Main Files:")
 #Select box for main files selection
-selected_file_name_1=selct_box_col[0].selectbox("",options=main_file_names_df,key=1)
+selected_main_file_name=selct_box_col[0].selectbox("",options=st.session_state['main_file_names'],key='main_files_names')
 # buttons
 if selct_box_col[1].button("🔍",key=1):
-    main_file_df,length_main_file_df=fetch_table(mf_sheet_table,sheet_name=selected_file_name_1,_connection=sq_conn) #fetch table
-    st.session_state['main_file_name']=selected_file_name_1
-    st.session_state['main_file_df']=main_file_df   #update sessionsate main file df
+    st.session_state['selected_main_file_name']=selected_main_file_name
+    st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],_connection=sq_conn)
     st.experimental_rerun()
 # show table
-if len(st.session_state['main_file_df']):
-    select_name_col[0].subheader(st.session_state['main_file_name'])
-    select_name_col[1].info('Results:'+str(len(st.session_state['main_file_df'])))
-    show_df_col[0]._legacy_dataframe(st.session_state['main_file_df'])
+if len(st.session_state['selected_main_file_df']):
+    select_name_col[0].subheader(st.session_state['selected_main_file_name'])
+    select_name_col[1].write('Results found: {}'.format(len(st.session_state['selected_main_file_df'])))
+    with show_df_col[0].expander("Show my sheet"):
+        st.write('Created at: '+str(st.session_state['selected_main_file_date']))
+        st._legacy_dataframe(st.session_state['selected_main_file_df'])
 else:
     st.info("Empty.....")
 
@@ -600,18 +624,19 @@ else:
 _=""" table of rolling return file """
 layout_col[2].header("Rolling Return Files:")
 # selectbox
-selected_file_name_2=selct_box_col[2].selectbox("",options=rr_file_names_df,key=2)
+selected_rr_file_name=selct_box_col[2].selectbox("",options=st.session_state['rr_file_names'],key=2)
 # button
 if selct_box_col[3].button("🔍",key=2):
-    rolling_return_file_df,length_rolling_return_file_df=fetch_table(mf_rolling_return_table,sheet_name=selected_file_name_2,_connection=sq_conn)
-    st.session_state['rr_file_name']=selected_file_name_2
-    st.session_state['rolling_return_file_df']=rolling_return_file_df
+    st.session_state['selected_rr_file_name']=selected_rr_file_name
+    st.session_state['selected_rr_file_df'],st.session_state['selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['selected_rr_file_name'],connection=sq_conn,username=username)
     st.experimental_rerun()
 # show table
-if len(st.session_state['rolling_return_file_df']):
-    select_name_col[2].subheader(st.session_state['rr_file_name'])
-    select_name_col[3].info("Results:{}".format(len(st.session_state['rolling_return_file_df'])))
-    show_df_col[1]._legacy_dataframe(st.session_state['rolling_return_file_df'])
+if len(st.session_state['selected_rr_file_df']):
+    select_name_col[2].subheader(st.session_state['selected_rr_file_name'])
+    select_name_col[3].write('Results found: {}'.format(len(st.session_state['selected_rr_file_df'])))
+    with show_df_col[1].expander("Show my sheet"):
+        st.write("Created at:{}".format(st.session_state['selected_rr_file_date']))
+        st._legacy_dataframe(st.session_state['selected_rr_file_df'])
 else:
     st.info("Empty.....")
 
@@ -626,7 +651,7 @@ if merge_but_col[1].button("Merge"):
     st.experimental_rerun()
 
 # 2.title and info
-info_col[0].subheader("Good funds")
+info_col[0].header("Good funds")
 info_col[2].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
 info_col[2].markdown("_Eliminated bad funds( funds with no data available for 3,5 yrs)_")
 info_col[0].write('')
@@ -634,7 +659,8 @@ info_col[0].write("Results:{}".format(len(st.session_state['good_funds_df'])))
 
 # 3.show df
 if len(st.session_state['good_funds_df']):
-    show_df_col2[0]._legacy_dataframe(st.session_state['good_funds_df'])
+    with show_df_col2[0].expander("Show my sheet",expanded=True):
+        st._legacy_dataframe(st.session_state['good_funds_df'])
 else:
     st.warning("Sorry wrong merge....")
     st.error("Please check your files:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
@@ -646,197 +672,212 @@ total_data_df=st.session_state['good_funds_df'].copy()
 
 _=""" Filter """
 # Copying Filter
-filter_df=st.session_state['filter_df'].copy()
+filter_df=st.session_state['selected_mf_filter_df'].copy()
 
 # FIlter creation
-st.subheader("My Filter")
+#with st.expander("Show Filter"):
+filter_tab,create_tab,add_tab,update_tab=st.tabs(["Filter","Create","Add","Update"])
+with filter_tab:
+    select_filter_col=st.columns((8,8,1))
+    select_filter_col[2].write("")
+    select_filter_col[2].write("")
 
-with st.expander("Show Filter"):
-    filter_tab,add_tab,update_tab=st.tabs(["Filter","Add","Update"])
-    with filter_tab:
-        # show filter
-        st._legacy_dataframe(filter_df,height=1000)
+    select_filter_col[0].header("My Filter")
 
-    with add_tab:
-            if 'df_filter' not in st.session_state:
-                st.session_state.df_filter = pd.DataFrame({'parameter': [], 'condition_1': [],
-                                    'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
+    ft_selected_filter_name=select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'])
+    if select_filter_col[2].button("🔍",key='select_filter_col'):
+        st.session_state['selected_mf_filter_name']=ft_selected_filter_name
+        st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
+        st.experimental_rerun()
+        
+    # show filter
+    if len(st.session_state['selected_mf_filter_df']):
+        select_filter_col[0].subheader(st.session_state['selected_mf_filter_name'])
+        select_filter_col[1].write('Created at:'+str(st.session_state['selected_mf_filter_date']))
+        with st.expander("Show filter"):
+            st._legacy_dataframe(st.session_state['selected_mf_filter_df'],height=1000)
+    else:
+        st.info('Empty...')
 
-        #update filter interface
-        #with st.form("Add"):
-            st.markdown("#### Add Parameter:")
-            u_parameter=st.text_input("Enter Parameter")
-            ut_col=st.columns((1,1,1,1,1))
-            u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average','-'])
-            u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average','Gold'])
-            u_weightage_1=ut_col[2].number_input("1st Weighatge")
-            u_sort=ut_col[3].selectbox("Select sort Condition",options=['Top 5','Bottom 5','Others'])
-            u_weightage_2=ut_col[4].number_input("2nd Weightage")
-
-            if ut_col[2].button('Add Parameter'):
-                selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
-                                    'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
-
-                st.session_state.df_filter = st.session_state.df_filter.append(selection, ignore_index=True)
-                st.write("New Parameters:")
-                st.table(st.session_state.df_filter)
-                st.experimental_rerun()
-
-            else:
-                if len(st.session_state.df_filter):
-                    st.write("New Parameters:")
-                    st.table(st.session_state.df_filter)
-            sc_but_col=st.columns((2,17,2))
-            if len(st.session_state.df_filter):
-                    if sc_but_col[0].button("Clear"):
-                        st.session_state.df_filter = st.session_state.df_filter.drop(len(st.session_state.df_filter) - 1)
-                        st.experimental_rerun()
-
-                    if sc_but_col[2].button("Save"):
-                    
-                            with st.spinner('Saving...'):
-                                time.sleep(1)
-                                
-                                st.session_state.df_filter.to_sql(mf_filter_table, sq_conn, if_exists='append', index=False)
-                                time.sleep(1)
-                                st.success("Done")
-                                st.session_state.df_filter = st.session_state.df_filter.drop(x for x in range(len(st.session_state.df_filter)))
-                                time.sleep(1)
-                                st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                                st.experimental_rerun()   
-
-            # show filter
-            #with st.expander("Show Filter"):
-            #if st.checkbox("Show Filter",key=1):
-            st.markdown("#### My Filter:")
-                #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-            st._legacy_dataframe(filter_df,height=1000)
-                #filter_show_q="SELECT * FROM " + mf_filter_table
-                #filter_df=pd.read_sql(filter_show_q,sq_conn)
-                #st._legacy_dataframe(filter_df,height=1000)
-
-
-    with update_tab:
-                    filter_test_df=filter_df.copy()
-
-                    Options=filter_df['parameter']
-                    o_condition_1=['Average','-']
-                    o_condition_2=['Above Average','Below Average','Gold']
-                    o_sort=['Top 5','Bottom 5','Others']
-                    conditions=['>', '<', '=']
-                    results=[-1, 1]
-                #with st.form("Update paramter"):
-                    st.subheader("Update Paramter:")
-        #with st.expander("Update Parameter"):
-                    new_col=st.columns((15,8,5))
-                    select_param2 = st.selectbox("Select parameter:",options=Options,key="erserstdvdvyfd")
-
-                    # to get index value of the parameter
-                    ind=np.where(filter_df['parameter'] == select_param2)
-                    #st.write(ind[0][0])
-
-                    # to get values of columns of selected parameter
-                    condition_1=filter_df.at[ind[0][0], 'condition_1']
-                    condition_2=filter_df.at[ind[0][0], 'condition_2']
-                    weightage_1=filter_df.at[ind[0][0], 'weightage_1']
-                    sort=filter_df.at[ind[0][0], 'sort']
-                    weightage_2=filter_df.at[ind[0][0], 'weightage_2']
-
-                    # defaults generation for selection
-                    if condition_1==o_condition_1[0]:
-                        cond_id_1=0
-                    elif condition_1==o_condition_1[1]:
-                        cond_id_1=1
-                 
-
-                    if condition_2==o_condition_2[0]:
-                        cond_id_2=0
-                    elif condition_2==o_condition_2[1]:
-                        cond_id_2=1
-                    else :
-                        cond_id_2=2
-                
-
-                    if sort==o_sort[0]:
-                        sort_id=0 
-                    elif sort==o_sort[1]:
-                        sort_id=1
-                    else:
-                        sort_id=2                   
- 
-
-                    ut_col=st.columns((1,1,1,1,1))
-                    u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=o_condition_1,key=1,index=cond_id_1)
-                    u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=o_condition_2,key=2,index=cond_id_2)
-                    u_weightage_1=ut_col[2].number_input("1st Weighatge",value=weightage_1,key=2)
-                    u_sort=ut_col[3].selectbox("Select sort Condition",options=o_sort,key=3,index=sort_id)
-                    u_weightage_2=ut_col[4].number_input("2nd Weightage",value=weightage_2,key=2)
-
-               
-                    if 'temp_df3' not in st.session_state:
-                        st.session_state.temp_df3=pd.DataFrame({'parameter': [], 'condition_1': [],
+with add_tab:
+        if 'df_filter' not in st.session_state:
+            st.session_state.df_filter = pd.DataFrame({'parameter': [], 'condition_1': [],
                                 'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
 
-                    updf_bcol=st.columns((1,10,1))
+        #update filter interface
+        st.markdown("#### Add Parameter:")
+        u_parameter=st.text_input("Enter Parameter")
+        ut_col=st.columns((1,1,1,1,1))
+        u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average','-'])
+        u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average','Gold'])
+        u_weightage_1=ut_col[2].number_input("1st Weighatge")
+        u_sort=ut_col[3].selectbox("Select sort Condition",options=['Top 5','Bottom 5','Others'])
+        u_weightage_2=ut_col[4].number_input("2nd Weightage")
 
-                    filter_test_df.at[ind[0][0], 'condition_1'] = u_condition_1
-                    filter_test_df.at[ind[0][0], 'condition_2'] = u_condition_2
-                    filter_test_df.at[ind[0][0], 'weightage_1'] = u_weightage_1
-                    filter_test_df.at[ind[0][0], 'sort'] = u_sort
-                    filter_test_df.at[ind[0][0], 'weightage_2'] = u_weightage_2
-                                
-                    
-                    if updf_bcol[0].button("Update"):
-                        selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
+        if ut_col[2].button('Add Parameter'):
+            selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
                                 'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
 
-                        #ignore_index=True    
-                        st.session_state.temp_df3=st.session_state.temp_df3.append(selection, ignore_index=True)
-                        filter_test_df.index = np.arange(1, len(filter_test_df) + 1)
-                        #st.table(test_df.style.set_table_styles(styles).apply(lambda x: ['background: yellow' if x.name==ind[0][0]+1 else'' for i in x],axis=1))   
-                        #st.experimental_rerun()
-                        st.session_state.temp_df3.index = np.arange(1, len(st.session_state.temp_df3) + 1)
+            st.session_state.df_filter = st.session_state.df_filter.append(selection, ignore_index=True)
+            st.write("New Parameters:")
+            st.table(st.session_state.df_filter)
+            st.experimental_rerun()
 
-                        for i in range(len(st.session_state.temp_df3)):
-                            #st.write(st.session_state.temp_df.iloc[[i]])
-                            upd_df=st.session_state.temp_df3.iloc[[i]]
+        else:
+            if len(st.session_state.df_filter):
+                st.write("New Parameters:")
+                st.table(st.session_state.df_filter)
+        sc_but_col=st.columns((2,17,2))
+        if len(st.session_state.df_filter):
+                if sc_but_col[0].button("Clear"):
+                    st.session_state.df_filter = st.session_state.df_filter.drop(len(st.session_state.df_filter) - 1)
+                    st.experimental_rerun()
 
-                            condition__1=str(upd_df['condition_1'][i+1])
-                            condition__2=str(upd_df['condition_2'][i+1])
-                            weightage__1=float(upd_df['weightage_1'][i+1])
-                            weightage__2=float(upd_df['weightage_2'][i+1])
-                            sort__=str(upd_df['sort'][i+1])
+                if sc_but_col[2].button("Save"):
+                
+                        with st.spinner('Saving...'):
+                            time.sleep(1)
                             
-                            update_q="UPDATE "+mf_filter_table+" SET condition_1 = '"+str(condition__1)+\
-                                "', condition_2 = '"+str(condition__2)+"', weightage_1 = '"+str(weightage__1)+\
-                                "', weightage_2 = '"+str(weightage__2)+"', sort = '"+str(sort__)+"' WHERE parameter='"+select_param2+"'"
-                            
-                            #'fmlxgnx,;v.b x[lmkn kpZ<G
-                            sq_cur.execute(update_q)
-                            st.success("Filter Update")
-                            st.session_state.temp_df3.drop(st.session_state.temp_df3.index, inplace=True)
-                            time.sleep(2)
+                            st.session_state.df_filter.to_sql(mf_filter_table, sq_conn, if_exists='append', index=False)
+                            time.sleep(1)
+                            st.success("Done")
+                            st.session_state.df_filter = st.session_state.df_filter.drop(x for x in range(len(st.session_state.df_filter)))
+                            time.sleep(1)
                             st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                            st.experimental_rerun()
+                            st.experimental_rerun()   
 
-                    if updf_bcol[2].button("Delete"):
-                        #DELETE FROM master_filter WHERE date_time = "2022-09-05 06:46:14" and `user`="chetan" and `name`="new" and `parameter_name`="EPS"
-                        del_row = "DELETE FROM " + mf_filter_table +" WHERE parameter='"+select_param2+"'"
-                        sq_cur.execute(del_row)
-                        st.success("Deleted..")
+        # show filter
+        #with st.expander("Show Filter"):
+        #if st.checkbox("Show Filter",key=1):
+        st.markdown("#### My Filter:")
+            #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
+        st._legacy_dataframe(filter_df,height=1000)
+            #filter_show_q="SELECT * FROM " + mf_filter_table
+            #filter_df=pd.read_sql(filter_show_q,sq_conn)
+            #st._legacy_dataframe(filter_df,height=1000)
+
+
+with update_tab:
+                filter_test_df=filter_df.copy()
+
+                Options=filter_df['parameter']
+                o_condition_1=['Average','-']
+                o_condition_2=['Above Average','Below Average','Gold']
+                o_sort=['Top 5','Bottom 5','Others']
+                conditions=['>', '<', '=']
+                results=[-1, 1]
+            #with st.form("Update paramter"):
+                st.subheader("Update Paramter:")
+    #with st.expander("Update Parameter"):
+                new_col=st.columns((15,8,5))
+                select_param2 = st.selectbox("Select parameter:",options=Options,key="erserstdvdvyfd")
+
+                # to get index value of the parameter
+                ind=np.where(filter_df['parameter'] == select_param2)
+                #st.write(ind[0][0])
+
+                # to get values of columns of selected parameter
+                condition_1=filter_df.at[ind[0][0], 'condition_1']
+                condition_2=filter_df.at[ind[0][0], 'condition_2']
+                weightage_1=filter_df.at[ind[0][0], 'weightage_1']
+                sort=filter_df.at[ind[0][0], 'sort']
+                weightage_2=filter_df.at[ind[0][0], 'weightage_2']
+
+                # defaults generation for selection
+                if condition_1==o_condition_1[0]:
+                    cond_id_1=0
+                elif condition_1==o_condition_1[1]:
+                    cond_id_1=1
+                
+
+                if condition_2==o_condition_2[0]:
+                    cond_id_2=0
+                elif condition_2==o_condition_2[1]:
+                    cond_id_2=1
+                else :
+                    cond_id_2=2
+            
+
+                if sort==o_sort[0]:
+                    sort_id=0 
+                elif sort==o_sort[1]:
+                    sort_id=1
+                else:
+                    sort_id=2                   
+
+
+                ut_col=st.columns((1,1,1,1,1))
+                u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=o_condition_1,key=1,index=cond_id_1)
+                u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=o_condition_2,key=2,index=cond_id_2)
+                u_weightage_1=ut_col[2].number_input("1st Weighatge",value=weightage_1,key=2)
+                u_sort=ut_col[3].selectbox("Select sort Condition",options=o_sort,key=3,index=sort_id)
+                u_weightage_2=ut_col[4].number_input("2nd Weightage",value=weightage_2,key=2)
+
+            
+                if 'temp_df3' not in st.session_state:
+                    st.session_state.temp_df3=pd.DataFrame({'parameter': [], 'condition_1': [],
+                            'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
+
+                updf_bcol=st.columns((1,10,1))
+
+                filter_test_df.at[ind[0][0], 'condition_1'] = u_condition_1
+                filter_test_df.at[ind[0][0], 'condition_2'] = u_condition_2
+                filter_test_df.at[ind[0][0], 'weightage_1'] = u_weightage_1
+                filter_test_df.at[ind[0][0], 'sort'] = u_sort
+                filter_test_df.at[ind[0][0], 'weightage_2'] = u_weightage_2
+                            
+                
+                if updf_bcol[0].button("Update"):
+                    selection = {'parameter':u_parameter, 'condition_1': u_condition_1,
+                            'condition_2': u_condition_2, 'weightage_1': u_weightage_1, 'sort': u_sort, 'weightage_2': u_weightage_2}
+
+                    #ignore_index=True    
+                    st.session_state.temp_df3=st.session_state.temp_df3.append(selection, ignore_index=True)
+                    filter_test_df.index = np.arange(1, len(filter_test_df) + 1)
+                    #st.table(test_df.style.set_table_styles(styles).apply(lambda x: ['background: yellow' if x.name==ind[0][0]+1 else'' for i in x],axis=1))   
+                    #st.experimental_rerun()
+                    st.session_state.temp_df3.index = np.arange(1, len(st.session_state.temp_df3) + 1)
+
+                    for i in range(len(st.session_state.temp_df3)):
+                        #st.write(st.session_state.temp_df.iloc[[i]])
+                        upd_df=st.session_state.temp_df3.iloc[[i]]
+
+                        condition__1=str(upd_df['condition_1'][i+1])
+                        condition__2=str(upd_df['condition_2'][i+1])
+                        weightage__1=float(upd_df['weightage_1'][i+1])
+                        weightage__2=float(upd_df['weightage_2'][i+1])
+                        sort__=str(upd_df['sort'][i+1])
+                        
+                        update_q="UPDATE "+mf_filter_table+" SET condition_1 = '"+str(condition__1)+\
+                            "', condition_2 = '"+str(condition__2)+"', weightage_1 = '"+str(weightage__1)+\
+                            "', weightage_2 = '"+str(weightage__2)+"', sort = '"+str(sort__)+"' WHERE parameter='"+select_param2+"'"
+                        
+                        #'fmlxgnx,;v.b x[lmkn kpZ<G
+                        sq_cur.execute(update_q)
+                        st.success("Filter Update")
+                        st.session_state.temp_df3.drop(st.session_state.temp_df3.index, inplace=True)
                         time.sleep(2)
                         st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
                         st.experimental_rerun()
 
-                    # show filter
-                    #with st.expander("Show Filter"):
-                    #if st.checkbox("Show Filter",key=2):
-                    st.markdown("#### My Filter:")
-                        #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
-                    st._legacy_dataframe(filter_df,height=1000)
-                        #filter_show_q="SELECT * FROM " + mf_filter_table
-                        #filter_df=pd.read_sql(filter_show_q,sq_conn)
-                        #st._legacy_dataframe(filter_df,height=1000)
+                if updf_bcol[2].button("Delete"):
+                    #DELETE FROM master_filter WHERE date_time = "2022-09-05 06:46:14" and `user`="chetan" and `name`="new" and `parameter_name`="EPS"
+                    del_row = "DELETE FROM " + mf_filter_table +" WHERE parameter='"+select_param2+"'"
+                    sq_cur.execute(del_row)
+                    st.success("Deleted..")
+                    time.sleep(2)
+                    st.session_state['filter_df'],length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
+                    st.experimental_rerun()
+
+                # show filter
+                #with st.expander("Show Filter"):
+                #if st.checkbox("Show Filter",key=2):
+                st.markdown("#### My Filter:")
+                    #filter_df,length_filter_table=fetch_table(mf_filter_table,_connection=sq_conn)
+                st._legacy_dataframe(filter_df,height=1000)
+                    #filter_show_q="SELECT * FROM " + mf_filter_table
+                    #filter_df=pd.read_sql(filter_show_q,sq_conn)
+                    #st._legacy_dataframe(filter_df,height=1000)
 
     
 _=""" Filter process """

@@ -63,7 +63,7 @@ _=""" title declaration """
 title_col=st.columns((7,5,1))
 title_col[0].title("📰Sentiment")
 s_col=st.columns((7,5,1))
-with s_col[1].expander("+"):
+with s_col[1].expander("💡"):
     st.markdown("\t###### Positive:🟢 Negative:🔴 Neutral:🔵")
 s_col4=st.columns((1,1,1,1))
 s_col3=st.columns((5,5,5,5))
@@ -248,9 +248,9 @@ if title_col[2].button("🔍"):
 
 
 ind=np.where(st.session_state['stocks_names']['Name']==st.session_state['comp_name'])
-s_col[0].header(st.session_state['comp_name'])
-s_col[0].subheader("Sentiment Analysis")
-s_col1[0].subheader("News")
+s_col[0].header('🏢 {}'.format(st.session_state['comp_name']))
+s_col[0].subheader("📝 Sentiment Analysis")
+s_col1[0].subheader("🧾 News")
 s_col1[2].download_button("📥Export", data=st.session_state['news_df'].to_csv(), file_name=st.session_state['comp_name']+'.csv')
 
 

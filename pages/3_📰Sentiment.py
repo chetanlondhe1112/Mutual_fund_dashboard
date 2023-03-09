@@ -36,6 +36,7 @@ with open('CSS/upload_sheet.css') as f:
 
 _=""" Refresh warning process"""
 if len(st.session_state) == 0:
+    
     st.warning("Please! Don't Refresh your browser.")
     st.info("Always, use dashboard Default Refresh!")
     with st.expander('Do This:'):

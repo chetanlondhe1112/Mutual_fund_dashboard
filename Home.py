@@ -62,11 +62,11 @@ _="""
 
 """   # fetching from .streamlit folder
 # connection credentials
-_user=st.secrets["mysql2"]["user"]
-_password=st.secrets["mysql2"]["password"],
-_host=st.secrets["mysql2"]["host"],
-_port=st.secrets["mysql2"]["port"],
-_database=st.secrets["mysql2"]["database"]
+_user=st.secrets["mysql4"]["user"]
+_password=st.secrets["mysql4"]["password"],
+_host=st.secrets["mysql4"]["host"],
+_port=st.secrets["mysql4"]["port"],
+_database=st.secrets["mysql4"]["database"]
 # Equity tables credentials
 admin = st.secrets["admin_ch"]["admin_ch"]
 master_table = st.secrets["db_table"]["master_table"]
@@ -99,11 +99,11 @@ if "serverout_time" not in st.session_state:
 # SQL alchemy  connection function
 def sqlalchemy_connection():
     try:
-        connect_string = "mysql://{}:{}@{}:{}/{}".format(st.secrets["mysql2"]["user"],
-                                            st.secrets["mysql2"]["password"],
-                                            st.secrets["mysql2"]["host"],
-                                            st.secrets["mysql2"]["port"],
-                                            st.secrets["mysql2"]["database"])
+        connect_string = "mysql://{}:{}@{}:{}/{}".format(st.secrets["mysql4"]["user"],
+                                            st.secrets["mysql4"]["password"],
+                                            st.secrets["mysql4"]["host"],
+                                            st.secrets["mysql4"]["port"],
+                                            st.secrets["mysql4"]["database"])
         return create_engine(connect_string)
     except:
         error="No database passed to function!!!"
@@ -565,6 +565,8 @@ def main():
                 if authen.logout('Logout', 'main'):
                     st.session_state=0
                     st.experimental_rerun()  
+
+col1[1].info("Username:chetan|Password:Chetan@3333")
 
 if __name__ == '__main__':
         main()

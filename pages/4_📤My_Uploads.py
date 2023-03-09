@@ -128,7 +128,7 @@ def fetch_table(table_name,_connection,sheet_name=None,_username=None):
             selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+_username+'" and sheet_name="'+sheet_name+'"'
             selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all').dropna(axis=0,how='any')
             selected_file_date=selected_file_df['date_time'][0]
-            return selected_file_df.drop(columns=['username','sheet_name','date_time'],axis=1),selected_file_date
+            return selected_file_df.drop(columns=['username','sheet_name','date_time','lable'],axis=1),selected_file_date
         except:
             st.error("Server lost.....")
             st.error("Please check connection.....")

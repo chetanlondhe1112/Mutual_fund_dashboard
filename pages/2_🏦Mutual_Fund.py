@@ -65,7 +65,7 @@ text_auto='.2s'
 
 _=""" title declaration """
 
-st.title("Mutual Fund Filter")
+st.title("🏦 Mutual Fund Filter 🧮")
 
 _=""" Layout designing """
 
@@ -537,11 +537,11 @@ def mf_report_data(sorted_total_df,sorted_weightage_df):
         show_df_TAMM =sorted_total_df[['ISIN','Legal Name','Total_Assets_?MM']]
         show_df_AITH=sorted_total_df[['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
         try:
-            st.session_state['analysis_report']=sorted_weightage_df
             ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
             st.session_state['rf_TAMM_df']=show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1)
             ta_rf_l2=red_flag_ind(show_df_AITH.head(5),parameter='%_Assets_in_Top_10_Holdings',consentration='High')
             st.session_state['rf_AITH_df']=show_df_AITH.drop("ISIN",axis=1).style.apply(lambda x: ['background: lightblue' if x.name in ta_rf_l2 else '' for i in x], axis=1)
+            st.session_state['mf_analysis_report']=sorted_weightage_df
             st.success("Report Generated...")
             time.sleep(1)
         except:
@@ -550,6 +550,27 @@ def mf_report_data(sorted_total_df,sorted_weightage_df):
             time.sleep(1)
 
 
+def new_to_excel(df_1,df_2,df_3):
+    output = BytesIO()
+    #writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    with pd.ExcelWriter(output,engine='xlsxwriter') as writer:  
+        df_1.to_excel(writer,sheet_name='ANALYSIS',engine='openpyxl')
+        df_2.to_excel(writer, sheet_name='Red_Flag_TA',startrow=2,engine='openpyxl')
+        df_3.to_excel(writer, sheet_name='Red_Flag_AH',startrow=2,engine='openpyxl')
+    #df.to_excel(writer, index=False, sheet_name='Sheet1')
+    workbook = writer.book
+    worksheet = writer.sheets['ANALYSIS']
+    format1 = workbook.add_format({'num_format': '0.00'}) 
+    worksheet.set_column('A:A', None, format1)  
+    worksheet2 = writer.sheets['Red_Flag_TA']
+    format2 = workbook.add_format({'num_format': '0.00'}) 
+    worksheet2.set_column('A:A', None, format2) 
+    worksheet3 = writer.sheets['Red_Flag_AH']
+    format3 = workbook.add_format({'num_format': '0.00'}) 
+    worksheet3.set_column('A:A', None, format3) 
+    writer.save()
+    processed_data = output.getvalue()
+    return processed_data
 
 _="""
 
@@ -633,8 +654,8 @@ if 'dash_generated' not in st.session_state:
 if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
     st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
 
-if 'analysis_report'and 'rf_TAMM_df' and 'rf_AITH_df' not in st.session_state:
-    st.session_state['analysis_report'],st.session_state['rf_TAMM_df'],st.session_state['rf_AITH_df']=0,0,0
+if 'mf_analysis_report'and 'rf_TAMM_df' and 'rf_AITH_df' not in st.session_state:
+    st.session_state['mf_analysis_report'],st.session_state['rf_TAMM_df'],st.session_state['rf_AITH_df']=0,0,0
 
 
 _="""  
@@ -660,20 +681,20 @@ _="""1.Fetch Files:Get tables from the database table """
 
 _=""" table of main file """
 #subheader for main files
-layout_col[0].header("Main Files:")
+layout_col[0].header("📁 Main Files:")
 #Select box for main files selection
 selected_main_file_name=selct_box_col[0].selectbox("",options=st.session_state['main_file_names'],key='main_files_names')
 # buttons
 if selct_box_col[1].button("🔍",key=1):
     st.session_state['selected_main_file_name']=selected_main_file_name
-    st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],_connection=sq_conn)
+    st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],connection=sq_conn,username=username)
     st.experimental_rerun()
 # show table
 if len(st.session_state['selected_main_file_df']):
-    select_name_col[0].subheader(st.session_state['selected_main_file_name'])
+    select_name_col[0].subheader('📄 {}'.format(st.session_state['selected_main_file_name']))
     select_name_col[1].write('Results found: {}'.format(len(st.session_state['selected_main_file_df'])))
     with show_df_col[0].expander("Show my sheet"):
-        st.write('Created at: '+str(st.session_state['selected_main_file_date']))
+        st.write('📅 Created at: '+str(st.session_state['selected_main_file_date']))
         st._legacy_dataframe(st.session_state['selected_main_file_df'])
 else:
     st.info("Empty.....")
@@ -681,7 +702,7 @@ else:
 
 
 _=""" table of rolling return file """
-layout_col[2].header("Rolling Return Files:")
+layout_col[2].header("📁 Rolling Return Files:")
 # selectbox
 selected_rr_file_name=selct_box_col[2].selectbox("",options=st.session_state['rr_file_names'],key=2)
 # button
@@ -691,10 +712,10 @@ if selct_box_col[3].button("🔍",key=2):
     st.experimental_rerun()
 # show table
 if len(st.session_state['selected_rr_file_df']):
-    select_name_col[2].subheader(st.session_state['selected_rr_file_name'])
+    select_name_col[2].subheader('📄 {}'.format(st.session_state['selected_rr_file_name']))
     select_name_col[3].write('Results found: {}'.format(len(st.session_state['selected_rr_file_df'])))
     with show_df_col[1].expander("Show my sheet"):
-        st.write("Created at:{}".format(st.session_state['selected_rr_file_date']))
+        st.write("📅 Created at:{}".format(st.session_state['selected_rr_file_date']))
         st._legacy_dataframe(st.session_state['selected_rr_file_df'])
 else:
     st.info("Empty.....")
@@ -703,14 +724,14 @@ else:
 _="""2.Merger: goodfunds function"""
 # 1.button
 if merge_but_col[1].button("Merge"):
-    st.session_state['source_file1']=st.session_state['main_file_name']
-    st.session_state['source_file2']=st.session_state['rr_file_name']
+    st.session_state['source_file1']=st.session_state['selected_main_file_name']
+    st.session_state['source_file2']=st.session_state['selected_rr_file_name']
     # Merging of sheets
-    st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['rolling_return_file_df'],main_df=st.session_state['main_file_df'])
+    st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['selected_rr_file_df'],main_df=st.session_state['selected_main_file_df'])
     st.experimental_rerun()
 
 # 2.title and info
-info_col[0].header("Good funds")
+info_col[0].header("😍 Good funds 📈")
 info_col[2].info("_Source Files_:**_{}_**_|_**_{}_**".format(st.session_state['source_file1'],st.session_state['source_file2']))
 info_col[2].markdown("_Eliminated bad funds( funds with no data available for 3,5 yrs)_")
 info_col[0].write('')
@@ -726,8 +747,7 @@ else:
 
 # 4.Create Copy of good funds data
 total_data_df=st.session_state['good_funds_df'].copy()
-#st.write('good funds added to total_data_df')
-#st._legacy_dataframe(total_data_df)
+
 
 _=""" Filter """
 # Copying Filter
@@ -735,13 +755,13 @@ filter_df=st.session_state['selected_mf_filter_df'].copy()
 
 # FIlter creation
 #with st.expander("Show Filter"):
-filter_tab,create_tab,add_tab,update_tab=st.tabs(["Filter","Create","Add","Update"])
+filter_tab,create_tab,add_tab,update_tab=st.tabs(["🧮 Filter","👨‍🔧 Create","🖇 Add","🔨 Update"])
 with filter_tab:
     select_filter_col=st.columns((8,8,1))
     select_filter_col[2].write("")
     select_filter_col[2].write("")
 
-    select_filter_col[0].header("My Filter")
+    select_filter_col[0].header("🧰 My Filter")
 
     ft_selected_filter_name=select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'])
     if select_filter_col[2].button("🔍",key='select_filter_col'):
@@ -751,8 +771,8 @@ with filter_tab:
         
     # show filter
     if len(st.session_state['selected_mf_filter_df']):
-        select_filter_col[0].subheader(st.session_state['selected_mf_filter_name'])
-        select_filter_col[1].write('Created at:'+str(st.session_state['selected_mf_filter_date']))
+        select_filter_col[0].subheader('🧮 {}'.format(st.session_state['selected_mf_filter_name']))
+        select_filter_col[1].write('📅 Created at:'+str(st.session_state['selected_mf_filter_date']))
         with st.expander("Show filter"):
             st._legacy_dataframe(st.session_state['selected_mf_filter_df'],height=1000)
     else:
@@ -863,6 +883,7 @@ with add_tab:
 
         #update filter interface
         u_parameter=st.text_input("Enter Parameter")
+        st.write(u_parameter)
         ut_col=st.columns((1,1,1,1,1))
         u_condition_1=ut_col[0].selectbox("Select 1st Condition",options=['Average','-'])
         u_condition_2=ut_col[1].selectbox("Select 2nd Condition",options=['Above Average','Below Average','Gold'])
@@ -1044,7 +1065,7 @@ with update_tab:
 
         if updf_bcol[2].button("Delete"):
         #  Delete query:DELETE FROM master_filter WHERE date_time = "2022-09-05 06:46:14" and `user`="chetan" and `name`="new" and `parameter_name`="EPS"
-            mf_ut_del_row = "DELETE FROM " + mf_filter_table +" WHERE date_time='"+str(st.session_state['ut_selected_mf_filter_date'])+"' and username='"+st.session_state["username"]+"' and name='"+st.session_state['ut_selected_mf_filter_name']+"' and parameter_name='"+ut_mf_select_param2+"'"
+            mf_ut_del_row = 'DELETE FROM ' + mf_filter_table +' WHERE date_time="'+str(st.session_state['ut_selected_mf_filter_date'])+'" and username="'+st.session_state["username"]+'" and name="'+st.session_state['ut_selected_mf_filter_name']+'" and parameter="'+ut_mf_select_param2+'"'
             with st.spinner("Deleting...."):
                 time.sleep(1)
                 try:
@@ -1086,21 +1107,24 @@ _=""" 2) Average out the multiple years of same paramaters in good funds df in o
 
 # 2.1) find the filter parameters matching with main combined sheet
 matched_parameter_dict=paramter_map(total_data_df,filter_df['parameter'])
-
+#st.write(matched_parameter_dict)
 # 2.2) for each parameters multiple data take average with result in single column with name matching in filter table
 for each_param in matched_parameter_dict:
     if len(matched_parameter_dict[each_param])>1:
         total_data_df[each_param] = total_data_df[matched_parameter_dict[each_param]].sum(axis=1)/len(avg_columns_list)
+
 #st.write('each multi yr data into single column added to total_data_df')
 #st._legacy_dataframe(total_data_df)
 
 _=""" 3) prepare filter process"""
 # 3.1) converting filter table into one dictionary of process
 process_dic=filter_df.set_index('parameter').to_dict(orient='index')
-
 _=""" 4) Apply filter """
 # 4.1) Apply filter
 # layout
+
+
+
 with filter_tab:
     apply_col=st.columns((5,2,5))
     apply_cheak=apply_col[1].button("Apply",key='mf_filter_apply')
@@ -1166,24 +1190,26 @@ with filter_tab:
             #export button
             exp_but_col=st.columns((5,5,2))
             
+
             #total_weightage_styled=total_sorted.style.apply(lambda x: ['background: lightgreen' if x.name in hi_list else '' for i in x], axis=1).apply(lambda x: ['background: lightblue' if x.name in hi_list2 else '' for i in x], axis=1)
             
             wt_col=st.columns((5,3,5))
+            exp_but_col[2].download_button("📥Export",key=2, data=new_to_excel(df_1=st.session_state['mf_analysis_report'],df_2=st.session_state['rf_TAMM_df'],df_3=st.session_state['rf_AITH_df']), file_name='Report_'+st.session_state['source_file1']+'.xlsx')
+
             wt_col[1].subheader("Weightage Table")
-            st._legacy_dataframe(st.session_state['analysis_report'])
-            exp_but_col[2].download_button("📥Export",key=2, data=to_excel(st.session_state['analysis_report']), file_name='weightage_'+st.session_state['source_file1']+'.xlsx')
+            st._legacy_dataframe(st.session_state['mf_analysis_report'])
 
             rf_col=st.columns((1,1))
 
             with rf_col[0]:
                 st.subheader("Total Assets ?MM")
                 st._legacy_dataframe(st.session_state['rf_TAMM_df'])
-                st.download_button("📥Export",key=3, data=to_excel(st.session_state['rf_TAMM_df']), file_name='rf_TA_'+st.session_state['source_file1']+'.xlsx')
+                #st.download_button("📥",key=3, data=to_excel(st.session_state['rf_TAMM_df']), file_name='rf_TA_'+st.session_state['source_file1']+'.xlsx')
 
             
             with rf_col[1]:
                 st.subheader("% Assets in Top 10 Holdings")
                 st._legacy_dataframe(st.session_state['rf_AITH_df'])
-                st.download_button("📥Export",key=4, data=to_excel(st.session_state['rf_AITH_df']), file_name='rf_AITH_'+st.session_state['source_file1']+'.xlsx')
+                #st.download_button("📥",key=4, data=to_excel(st.session_state['rf_AITH_df']), file_name='rf_AITH_'+st.session_state['source_file1']+'.xlsx')
 
         

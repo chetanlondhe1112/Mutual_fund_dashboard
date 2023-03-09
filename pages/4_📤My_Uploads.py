@@ -920,6 +920,15 @@ with MF_tab2:
                     else:
                         st.warning("Please upload file.....")
 
+        txt="While uploading rolling sheet ,please modify the columns name as show in below sheet."
+        txt2="Average columns should mention yr:Avg=Avg_1_yr,Avg_3_yr,Avg_5_yr,etc"
+        txt3="Last total Column change to Total_1.(Please confirm the underscores between them)"
+        war_col=st.columns((1,1,1))
+        with war_col[2].expander("Requirements:"):
+            st.error(txt)
+            st.error(txt2)
+            st.error(txt3)
+            
     with MF_tab21:
         st.header("My Files")
         myf_col=st.columns((4,12,1))

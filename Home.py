@@ -62,11 +62,11 @@ _="""
 
 """   # fetching from .streamlit folder
 # connection credentials
-_user=st.secrets["mysql4"]["user"]
-_password=st.secrets["mysql4"]["password"],
-_host=st.secrets["mysql4"]["host"],
-_port=st.secrets["mysql4"]["port"],
-_database=st.secrets["mysql4"]["database"]
+_user=st.secrets["mysql_aws_rds"]["user"]
+_password=st.secrets["mysql_aws_rds"]["password"],
+_host=st.secrets["mysql_aws_rds"]["host"],
+_port=st.secrets["mysql_aws_rds"]["port"],
+_database=st.secrets["mysql_aws_rds"]["database"]
 # Equity tables credentials
 admin = st.secrets["admin_ch"]["admin_ch"]
 master_table = st.secrets["db_table"]["master_table"]
@@ -86,7 +86,6 @@ mf_rolling_return_table=st.secrets["db_table"]["mf_rolling_return_table"]
 _="""credentials declaration """
 
 
-
 _=""" 
 
     Creating Connection 
@@ -99,11 +98,11 @@ if "serverout_time" not in st.session_state:
 # SQL alchemy  connection function
 def sqlalchemy_connection():
     try:
-        connect_string = "mysql://{}:{}@{}:{}/{}".format(st.secrets["mysql4"]["user"],
-                                            st.secrets["mysql4"]["password"],
-                                            st.secrets["mysql4"]["host"],
-                                            st.secrets["mysql4"]["port"],
-                                            st.secrets["mysql4"]["database"])
+        connect_string = "mysql://{}:{}@{}:{}/{}".format(st.secrets["mysql_aws_rds"]["user"],
+                                            st.secrets["mysql_aws_rds"]["password"],
+                                            st.secrets["mysql_aws_rds"]["host"],
+                                            st.secrets["mysql_aws_rds"]["port"],
+                                            st.secrets["mysql_aws_rds"]["database"])
         return create_engine(connect_string)
     except:
         error="No database passed to function!!!"

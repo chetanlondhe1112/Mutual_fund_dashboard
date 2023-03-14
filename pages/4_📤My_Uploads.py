@@ -3,7 +3,7 @@ import streamlit as st
 import time
 from datetime import datetime
 from sqlalchemy import text
-from Home import sqlalchemy_connection
+from Home import sqlalchemy_connection,refresh_dashboard
 from Home import mf_sheet_table,mf_rolling_return_table,master_table
 
 
@@ -13,6 +13,10 @@ with open('CSS/upload_sheet.css') as f:
 
 st.title("📤My Uploads")
 MF_tab1,MF_tab2=st.tabs(('Equity','Mutual Fund'))
+with MF_tab1:
+    eq_files_tab,eq_upload_tab=st.tabs(["My Files","Upload File"])
+with MF_tab2:
+    MF_tab21,MF_tab22=st.tabs(["My Files","Upload File"])
 
 _=""" Refresh warning process"""
 if len(st.session_state) == 0:
@@ -419,8 +423,7 @@ def upload_file_db(df,_current_date,_username,_sheet_name,db_table_name,_connect
             st.experimental_rerun()
         st.error("Something went wrong!!!")
         time.sleep(1)
-        st.experimental_rerun()
-    st.experimental_rerun()
+  
 
 
 
@@ -439,8 +442,6 @@ def upload_columns(temp_df,db_table_name,_cursor):
             st.session_state["sq_cur_obj"]=0   
             st.error("Connection lost")
             time.sleep(1)
-            st.experimental_rerun()
-    st.experimental_rerun() 
 
 
 
@@ -454,41 +455,41 @@ Session state
 _=""" ss variables """
 
 # 0.Sheets names
-if 'u_users_sheets_names' not in st.session_state:
-    st.session_state['u_users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
 
-# 1.selected sheet
-if 'u_selected_sheet_name' not in st.session_state:
-    st.session_state['u_selected_sheet_name']=st.session_state['u_users_sheets_names'].iloc[0]['sheet_name']
+if not len(st.session_state['u_users_sheets_names']):
+    with eq_files_tab:
+        st.error("Sorry, you didn't have uploaded any sheets...")
+        st.warning("Please,upload your sheets first!!!!")
+        st.experimental_rerun()     
 
-# 2.selected sheet df
-if 'u_selected_sheet_df' and 'u_selected_sheet_datetime' not in st.session_state:
-    st.session_state['u_selected_sheet_df'],st.session_state['u_selected_sheet_datetime']= eq_fetch_table(table_name=master_table,_connection=sq_conn,sheet_name=st.session_state['u_selected_sheet_name'],_username=st.session_state["username"])
+else:
+    # 1.selected sheet
+    if 'u_selected_sheet_name' not in st.session_state:
+        st.session_state['u_selected_sheet_name']=st.session_state['u_users_sheets_names'].iloc[0]['sheet_name']
 
-
-
-
-if 'u_main_file_names' not in st.session_state:
-    st.session_state['u_main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
-
-if 'u_selected_main_file_name' not in st.session_state:
-    st.session_state['u_selected_main_file_name']=st.session_state['u_main_file_names'].iloc[0]['sheet_name']
-
-if 'u_selected_main_file_df' and 'u_selected_main_file_date' not in st.session_state:
-    st.session_state['u_selected_main_file_df'],st.session_state['u_selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['u_selected_main_file_name'],_connection=sq_conn,_username=username)
-
-# 2.Rolling return name & dataframe
-
-if 'u_rr_file_names' not in st.session_state:
-    st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
-
-if 'u_selected_rr_file_name' not in st.session_state:
-    st.session_state['u_selected_rr_file_name']=st.session_state['u_rr_file_names'].iloc[0]['sheet_name']
-
-if 'u_selected_rr_file_df' and 'u_selected_rr_file_date' not in st.session_state:
-    st.session_state['u_selected_rr_file_df'],st.session_state['u_selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['u_selected_rr_file_name'],_connection=sq_conn,_username=username)
+    # 2.selected sheet df
+    if 'u_selected_sheet_df' and 'u_selected_sheet_datetime' not in st.session_state:
+        st.session_state['u_selected_sheet_df'],st.session_state['u_selected_sheet_datetime']= eq_fetch_table(table_name=master_table,_connection=sq_conn,sheet_name=st.session_state['u_selected_sheet_name'],_username=st.session_state["username"])
 
 
+if not len(st.session_state['u_main_file_names']):
+    with MF_tab21:
+        st.error("Sorry, you didn't have uploaded any sheets...")
+        st.warning("Please,upload your sheets first!!!!")  
+else:
+    if 'u_selected_main_file_name' not in st.session_state:
+        st.session_state['u_selected_main_file_name']=st.session_state['u_main_file_names'].iloc[0]['sheet_name']
+
+    if 'u_selected_main_file_df' and 'u_selected_main_file_date' not in st.session_state:
+        st.session_state['u_selected_main_file_df'],st.session_state['u_selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['u_selected_main_file_name'],_connection=sq_conn,_username=username)
+
+    # 2.Rolling return name & dataframe
+
+    if 'u_selected_rr_file_name' not in st.session_state:
+        st.session_state['u_selected_rr_file_name']=st.session_state['u_rr_file_names'].iloc[0]['sheet_name']
+
+    if 'u_selected_rr_file_df' and 'u_selected_rr_file_date' not in st.session_state:
+        st.session_state['u_selected_rr_file_df'],st.session_state['u_selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['u_selected_rr_file_name'],_connection=sq_conn,_username=username)
 
 
 # temporary dataframe to hold selected list
@@ -519,10 +520,7 @@ def del_callback_urr():
         st.session_state.delete_clicked_urr = True
 
 
-
-
 with MF_tab1:
-    eq_files_tab,eq_upload_tab=st.tabs(["My Files","Upload File"])
 
     with eq_upload_tab:
         eq_file = st.file_uploader("Upload your file:",key='eq_upload')
@@ -646,6 +644,8 @@ with MF_tab1:
                         if cheaked:
                         # Uploading process
                             upload_file_db(eq_df,current_date,username,eq_sheet_name,master_table,sq_conn)
+                            refresh_dashboard(username)
+                            st.experimental_rerun()
                         elif error:
                             st.error(error)
                     else:
@@ -681,63 +681,62 @@ with MF_tab1:
                 st.warning("file has not uploaded")
 
     with eq_files_tab:
-        _=""" 
-        table of rr file
-        """
-        eq_myf_col=st.columns((8,12,1))
 
-        #   subheader for main files
-        #   Select box for main files selection
-        eq_myf_col[0].subheader("Equity Files")
-        eq_myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_users_sheets_names'])))
-        eq_myf_col[0]._legacy_dataframe(st.session_state['u_users_sheets_names'])
+        if (len(st.session_state['u_users_sheets_names'])):
+            _=""" 
+            table of rr file
+            """
+            eq_myf_col=st.columns((8,12,1))
 
-        u_eq__selected_file_name_1=eq_myf_col[1].selectbox("",options=st.session_state['u_users_sheets_names'],key='ueq')
-        #   buttons
-        eq_myf_col[2].write('')
-        eq_myf_col[2].write('')
-        if eq_myf_col[2].button("🔍",key='ueq'):
-            st.session_state['u_users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
-            st.session_state['users_sheets_names']=st.session_state['u_users_sheets_names']
-            st.session_state['u_selected_sheet_name']=u_eq__selected_file_name_1
-            st.session_state['u_selected_sheet_df'],st.session_state['u_selected_sheet_datetime']= eq_fetch_table(table_name=master_table,_connection=sq_conn,sheet_name=st.session_state['u_selected_sheet_name'],_username=st.session_state["username"])
-                #update sessionsate main file df
-            st.experimental_rerun()
+            #   subheader for main files
+            #   Select box for main files selection
+            eq_myf_col[0].subheader("Equity Files")
+            eq_myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_users_sheets_names'])))
+            eq_myf_col[0]._legacy_dataframe(st.session_state['u_users_sheets_names'])
 
-        eq_myf_col[2].write('')
-        eq_rem_but=eq_myf_col[2].button("🗑️",help="Delete your sheet",key='U_eq',on_click=del_callback_ueq)
-        if (eq_rem_but or st.session_state.delete_clicked_ueq):
-            with eq_myf_col[1].form("Are you sure?"):
-                st.write("Are you sure?")
-                if st.form_submit_button("Yes"):
-                    with st.spinner('Deleting...'):
-                        time.sleep(1)
-                        o = "DELETE FROM " + master_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_sheet_name'] + "'"
-                        sq_cur.execute(text(o))
-                        time.sleep(1)
-                        st.success("Sheet Deleted")
-                        time.sleep(1)
+            u_eq__selected_file_name_1=eq_myf_col[1].selectbox("",options=st.session_state['u_users_sheets_names'],key='ueq')
+            #   buttons
+            eq_myf_col[2].write('')
+            eq_myf_col[2].write('')
+            if eq_myf_col[2].button("🔍",key='ueq'):
+                st.session_state['u_users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
+                st.session_state['users_sheets_names']=st.session_state['u_users_sheets_names']
+                st.session_state['u_selected_sheet_name']=u_eq__selected_file_name_1
+                st.session_state['u_selected_sheet_df'],st.session_state['u_selected_sheet_datetime']= eq_fetch_table(table_name=master_table,_connection=sq_conn,sheet_name=st.session_state['u_selected_sheet_name'],_username=st.session_state["username"])
+                    #update sessionsate main file df
+                st.experimental_rerun()
+
+            eq_myf_col[2].write('')
+            eq_rem_but=eq_myf_col[2].button("🗑️",help="Delete your sheet",key='U_eq',on_click=del_callback_ueq)
+            if (eq_rem_but or st.session_state.delete_clicked_ueq):
+                with eq_myf_col[1].form("Are you sure?"):
+                    st.write("Are you sure?")
+                    if st.form_submit_button("Yes"):
+                        with st.spinner('Deleting...'):
+                            time.sleep(1)
+                            o = "DELETE FROM " + master_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_sheet_name'] + "'"
+                            sq_cur.execute(text(o))
+                            time.sleep(1)
+                            st.success("Sheet Deleted")
+                            time.sleep(1)
+                            st.session_state.delete_clicked_ueq=False
+                            st.session_state['u_users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
+                            st.experimental_rerun()
+                    elif st.form_submit_button("No"):
                         st.session_state.delete_clicked_ueq=False
-                        st.session_state['u_users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
                         st.experimental_rerun()
-                elif st.form_submit_button("No"):
-                    st.session_state.delete_clicked_ueq=False
-                    st.experimental_rerun()
 
-        #   show table
-        if len(st.session_state['u_selected_sheet_df']):
-            eq_myf_col[1].subheader(st.session_state['u_selected_sheet_name'])
-            eq_myf_col[1].write('Created at:'+str(st.session_state['u_selected_sheet_datetime']))
-            with eq_myf_col[1].expander("Show my sheet",expanded=True):
-                st._legacy_dataframe(st.session_state['u_selected_sheet_df'])
-        else:
-            st.info("Empty.....")
+            #   show table
+            if len(st.session_state['u_selected_sheet_df']):
+                eq_myf_col[1].subheader(st.session_state['u_selected_sheet_name'])
+                eq_myf_col[1].write('Created at:'+str(st.session_state['u_selected_sheet_datetime']))
+                with eq_myf_col[1].expander("Show my sheet",expanded=True):
+                    st._legacy_dataframe(st.session_state['u_selected_sheet_df'])
+            else:
+                st.info("Empty.....")
 
 
 with MF_tab2:
-
-    # layout columns
-    MF_tab21,MF_tab22=st.tabs(["My Files","Upload File"])
 
     with MF_tab22:
 
@@ -810,6 +809,8 @@ with MF_tab2:
 
                             if st.button("Add Columns",key='main_file'):
                                 upload_columns(st.session_state.df_temp,mf_sheet_table,sq_cur)
+                                refresh_dashboard(username)
+                                st.experimental_rerun()
 
                     else:
                     
@@ -821,6 +822,8 @@ with MF_tab2:
                                                         # Uploading process
                             if cheaked:
                                 upload_file_db(m_file_df,current_date,username,m_sheet_name,mf_sheet_table,sq_conn)
+                                refresh_dashboard(username)
+                                st.experimental_rerun()
                             elif error:
                                 st.error(error)
                                 st.stop() 
@@ -899,6 +902,8 @@ with MF_tab2:
 
                                 if st.button("Add Columns",key='rr_file'):
                                     upload_columns(st.session_state.df_temp2, mf_rolling_return_table, sq_cur)
+                                    refresh_dashboard(username)
+                                    st.experimental_rerun()
                         else:
                             # start of uploading process
                             submit=st.button("Submit",key='rr_file')
@@ -909,7 +914,8 @@ with MF_tab2:
                                 if cheaked:
                                 # Uploading process
                                     upload_file_db(rr_file_df,current_date,username,rr_sheet_name,mf_rolling_return_table,sq_conn)
-                                
+                                    refresh_dashboard(username)
+                                    st.experimental_rerun()
                                 elif error:
                                     st.error(error)
 
@@ -930,108 +936,111 @@ with MF_tab2:
             st.error(txt3)
             
     with MF_tab21:
-        st.header("My Files")
-        myf_col=st.columns((4,12,1))
 
-        _=""" 
-        table of main file
-        """
+        if len(st.session_state['u_main_file_names']):
 
-        #   subheader for main files
-        #   Select box for main files selection
-        myf_col[0].subheader("Main Files:")
-        myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_main_file_names'])))
+            st.header("My Files")
+            myf_col=st.columns((4,12,1))
 
-        myf_col[0]._legacy_dataframe(st.session_state['u_main_file_names'])
+            _=""" 
+            table of main file
+            """
+
+            #   subheader for main files
+            #   Select box for main files selection
+            myf_col[0].subheader("Main Files:")
+            myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_main_file_names'])))
+
+            myf_col[0]._legacy_dataframe(st.session_state['u_main_file_names'])
 
 
-        u_selected_file_name_1=myf_col[1].selectbox("",options=st.session_state['u_main_file_names'],key=1)
-        #   buttons
-        myf_col[2].write('')
-        myf_col[2].write('')
-        if myf_col[2].button("🔍",key=1):
+            u_selected_file_name_1=myf_col[1].selectbox("",options=st.session_state['u_main_file_names'],key=1)
+            #   buttons
+            myf_col[2].write('')
+            myf_col[2].write('')
+            if myf_col[2].button("🔍",key=1):
 
-            st.session_state['u_selected_main_file_name']=u_selected_file_name_1
-            st.session_state['u_selected_main_file_df'],st.session_state['u_selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['u_selected_main_file_name'],_connection=sq_conn,_username=username)
-                #update sessionsate main file df
-            st.experimental_rerun()
+                st.session_state['u_selected_main_file_name']=u_selected_file_name_1
+                st.session_state['u_selected_main_file_df'],st.session_state['u_selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['u_selected_main_file_name'],_connection=sq_conn,_username=username)
+                    #update sessionsate main file df
+                st.experimental_rerun()
 
-        m_rem_but=myf_col[2].button("🗑️",help="Delete your sheet",key='U_me',on_click=del_callback_um)
-        if (m_rem_but or st.session_state.delete_clicked_um):
-            with myf_col[1].form("Are you sure?"):
-                st.write("Are you sure?")
-                if st.form_submit_button("Yes"):
-                    with st.spinner('Deleting...'):
-                        time.sleep(1)
-                        o = "DELETE FROM " + mf_sheet_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_main_file_name'] + "'"
-                        sq_cur.execute(text(o))
-                        time.sleep(1)
-                        st.success("Sheet Deleted")
-                        time.sleep(1)
+            m_rem_but=myf_col[2].button("🗑️",help="Delete your sheet",key='U_me',on_click=del_callback_um)
+            if (m_rem_but or st.session_state.delete_clicked_um):
+                with myf_col[1].form("Are you sure?"):
+                    st.write("Are you sure?")
+                    if st.form_submit_button("Yes"):
+                        with st.spinner('Deleting...'):
+                            time.sleep(1)
+                            o = "DELETE FROM " + mf_sheet_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_main_file_name'] + "'"
+                            sq_cur.execute(text(o))
+                            time.sleep(1)
+                            st.success("Sheet Deleted")
+                            time.sleep(1)
+                            st.session_state.delete_clicked_um=False
+                            st.session_state['u_main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
+                            st.experimental_rerun()
+                    elif st.form_submit_button("No"):
                         st.session_state.delete_clicked_um=False
-                        st.session_state['u_main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
-                        st.experimental_rerun()
-                elif st.form_submit_button("No"):
-                    st.session_state.delete_clicked_um=False
-                    st.experimental_rerun()   
-        #   show table
-        if len(st.session_state['u_selected_main_file_df']):
-            myf_col[1].subheader(st.session_state['u_selected_main_file_name'])
-            myf_col[1].write('Created at:'+str(st.session_state['u_selected_main_file_date']))
-            with myf_col[1].expander("Show my sheet",expanded=True):
-                st._legacy_dataframe(st.session_state['u_selected_main_file_df'])
-        else:
-            st.info("Empty.....")
-        # Show all file's register
-      
+                        st.experimental_rerun()   
+            #   show table
+            if len(st.session_state['u_selected_main_file_df']):
+                myf_col[1].subheader(st.session_state['u_selected_main_file_name'])
+                myf_col[1].write('Created at:'+str(st.session_state['u_selected_main_file_date']))
+                with myf_col[1].expander("Show my sheet",expanded=True):
+                    st._legacy_dataframe(st.session_state['u_selected_main_file_df'])
+            else:
+                st.info("Empty.....")
+            # Show all file's register
+        
 
-        _=""" 
-        table of rr file
-        """
-        rr_myf_col=st.columns((4,12,1))
+            _=""" 
+            table of rr file
+            """
+            rr_myf_col=st.columns((4,12,1))
 
-        #   subheader for main files
-        #   Select box for main files selection
-        rr_myf_col[0].subheader("Rolling Returns Files:")
-        rr_myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_rr_file_names'])))
-        rr_myf_col[0]._legacy_dataframe(st.session_state['u_rr_file_names'])
+            #   subheader for main files
+            #   Select box for main files selection
+            rr_myf_col[0].subheader("Rolling Returns Files:")
+            rr_myf_col[0].write("Total Sheets : {}".format(len(st.session_state['u_rr_file_names'])))
+            rr_myf_col[0]._legacy_dataframe(st.session_state['u_rr_file_names'])
 
-        u_rr_selected_file_name_1=rr_myf_col[1].selectbox("",options=st.session_state['u_rr_file_names'],key='urr')
-        #   buttons
-        rr_myf_col[2].write('')
-        rr_myf_col[2].write('')
-        if rr_myf_col[2].button("🔍",key='urr'):
-            st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
-            st.session_state['u_selected_rr_file_name']=u_rr_selected_file_name_1
-            st.session_state['u_selected_rr_file_df'],st.session_state['u_selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['u_selected_rr_file_name'],_connection=sq_conn,_username=username)
-                #update sessionsate main file df
-            st.experimental_rerun()
+            u_rr_selected_file_name_1=rr_myf_col[1].selectbox("",options=st.session_state['u_rr_file_names'],key='urr')
+            #   buttons
+            rr_myf_col[2].write('')
+            rr_myf_col[2].write('')
+            if rr_myf_col[2].button("🔍",key='urr'):
+                st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+                st.session_state['u_selected_rr_file_name']=u_rr_selected_file_name_1
+                st.session_state['u_selected_rr_file_df'],st.session_state['u_selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['u_selected_rr_file_name'],_connection=sq_conn,_username=username)
+                    #update sessionsate main file df
+                st.experimental_rerun()
 
-        rr_rem_but=rr_myf_col[2].button("🗑️",help="Delete your sheet",key='U_rre',on_click=del_callback_urr)
-        if (rr_rem_but or st.session_state.delete_clicked_urr):
-            with rr_myf_col[1].form("Are you sure?"):
-                st.write("Are you sure?")
-                if st.form_submit_button("Yes"):
-                    with st.spinner('Deleting...'):
-                        time.sleep(1)
-                        o = "DELETE FROM " + mf_rolling_return_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_rr_file_name'] + "'"
-                        sq_cur.execute(text(o))
-                        time.sleep(1)
-                        st.success("Sheet Deleted")
-                        time.sleep(1)
+            rr_rem_but=rr_myf_col[2].button("🗑️",help="Delete your sheet",key='U_rre',on_click=del_callback_urr)
+            if (rr_rem_but or st.session_state.delete_clicked_urr):
+                with rr_myf_col[1].form("Are you sure?"):
+                    st.write("Are you sure?")
+                    if st.form_submit_button("Yes"):
+                        with st.spinner('Deleting...'):
+                            time.sleep(1)
+                            o = "DELETE FROM " + mf_rolling_return_table + " WHERE username='" + st.session_state["username"] + "' and sheet_name='" +st.session_state['u_selected_rr_file_name'] + "'"
+                            sq_cur.execute(text(o))
+                            time.sleep(1)
+                            st.success("Sheet Deleted")
+                            time.sleep(1)
+                            st.session_state.delete_clicked_urr=False
+                            st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+                            st.experimental_rerun()
+                    elif st.form_submit_button("No"):
                         st.session_state.delete_clicked_urr=False
-                        st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
                         st.experimental_rerun()
-                elif st.form_submit_button("No"):
-                    st.session_state.delete_clicked_urr=False
-                    st.experimental_rerun()
 
-        #   show table
-        if len(st.session_state['u_selected_rr_file_df']):
-            rr_myf_col[1].subheader(st.session_state['u_selected_rr_file_name'])
-            rr_myf_col[1].write('Created at:'+str(st.session_state['u_selected_rr_file_date']))
-            with rr_myf_col[1].expander("Show my sheet",expanded=True):
-                st._legacy_dataframe(st.session_state['u_selected_rr_file_df'])
-        else:
-            st.info("Empty.....")
+            #   show table
+            if len(st.session_state['u_selected_rr_file_df']):
+                rr_myf_col[1].subheader(st.session_state['u_selected_rr_file_name'])
+                rr_myf_col[1].write('Created at:'+str(st.session_state['u_selected_rr_file_date']))
+                with rr_myf_col[1].expander("Show my sheet",expanded=True):
+                    st._legacy_dataframe(st.session_state['u_selected_rr_file_df'])
+            else:
+                st.info("Empty.....")
 

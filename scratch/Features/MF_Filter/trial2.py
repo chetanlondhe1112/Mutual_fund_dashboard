@@ -247,121 +247,76 @@ with st.expander("Filter"):
 
 
 test_df=selected_file_df
-columns=test_df.columns.to_list()
-#st.write(columns)
-columns_r=[x.replace("_", " ") for x in columns]
-#st.write(columns_r)
 
+#   0.COllecting the test df underscore removed
+columns=test_df.columns.to_list()
+columns_r=[x.replace("_", " ") for x in columns]
+
+#   1.Mapping the parameters to find the filter paramters in selected sheets columsn.
 match_sheet_parameter={}
 for parameter in filter_df['parameter']:
     arr=[]
     for x in columns_r:
         if parameter in x:
             arr.append(x)
-            #st.write(sheet_param)
     match_sheet_parameter[parameter]=[x.replace(" ", "_") for x in arr]
 
-task={}
-process={}
-
-filter_parameters=filter_df.columns.to_list()[1:]
-#st.write(filter_parameter)
-for parameter in filter_df['parameter']:
-    ind=np.where(filter_df["parameter"] == parameter)
-    par_process={}
-    for column in filter_parameters:
-        value1=filter_df.at[ind[0][0], column]
-        #st.write(value1)
-        par_process[column]=value1
-    process[parameter]=par_process
     
 
 col=st.columns((1,1,1))
 
 with col[0].expander("Parameters matching in sheet"):
     st.write(match_sheet_parameter) 
-with col[1].expander("Process dictionary"):
-    st.write(process)
-#    print(process)
-with col[0].expander("Key-Process"):
-    for key in process:
-        for task in process[key]:
-            st.write("{}={}".format(task,process[key][task]))
+
 
 st.write("filter creation")
 
-#extracting parameter from filter
-task_dictionary={}
-for filter_parameter in filter_df['parameter']:
-    #st.write(filter_parameter)
-    matched_sheet_param_list=match_sheet_parameter[filter_parameter]
-    #st.write(matched_sheet_param_list)
-    for sheet_param in matched_sheet_param_list:
-        task_dictionary[sheet_param]=process[filter_parameter]
-        #st.write(sheet_param)
-        #st.write(filter_parameter)
-        #st.write(process[filter_parameter])
-with col[2].expander("task_dictionary"):
-    st.write(task_dictionary)
+
+#   2.Averaging the multi year data
 total_data_df=test_df.copy()
 for each_param in match_sheet_parameter:
     if len(match_sheet_parameter[each_param])>1:
-        st.write(match_sheet_parameter[each_param])
-        st.write(len(match_sheet_parameter[each_param]))
         total_data_df[each_param] = total_data_df[match_sheet_parameter[each_param]].sum(axis=1)/len(match_sheet_parameter[each_param])
         total_data_df= total_data_df.drop(columns= match_sheet_parameter[each_param],axis=1)
 st._legacy_dataframe(total_data_df)
 
 
-columns_t=total_data_df.columns.to_list()
-#st.write(columns)
-columns_t=[x.replace("_", " ") for x in columns_t]
+#   3.Collecting list of columnms of total data df with Replacing the "_"  with " " 
+columns_t=[x.replace("_", " ") for x in total_data_df.columns.to_list()]
 
+
+#   4.Mapping the filter prameters with total data df
 match_sheet_parameter_2={}
 for parameter in filter_df['parameter']:
     arr=[]
-    for x in columns_t:
+    for x in columns_t:                     #   the reason to use underscores removed list is ,filter parameters are saved without using underscores between them
         if parameter in x:
             arr.append(x)
-            #st.write(sheet_param)
     match_sheet_parameter_2[parameter]=[x.replace(" ", "_") for x in arr]
+with col[1].expander("match_sheet_parameter_2"):
+    st.write(match_sheet_parameter_2)
 
-st.write(match_sheet_parameter_2)
+#   5.Preparing filter process dictionary
+process_dic=filter_df.set_index('parameter').to_dict(orient='index')
 
-process2={}
-filter_parameters=filter_df.columns.to_list()[1:]
-#st.write(filter_parameter)
-for parameter in filter_df['parameter']:
-    ind=np.where(filter_df["parameter"] == parameter)
-    par_process={}
-    for column in filter_parameters:
-        value1=filter_df.at[ind[0][0], column]
-        #st.write(value1)
-        par_process[column]=value1
-    process2[parameter]=par_process
 
+with col[1].expander("process_dic"):
+    st.write(process_dic)
+
+# 6.Preparing the final task dictionary
 task_dictionary2={}
 for filter_parameter in filter_df['parameter']:
-    #st.write(filter_parameter)
     matched_sheet_param_list=match_sheet_parameter_2[filter_parameter]
-    #st.write(matched_sheet_param_list)
     for sheet_param in matched_sheet_param_list:
-        task_dictionary2[sheet_param]=process2[filter_parameter]
+        task_dictionary2[sheet_param]=process_dic[filter_parameter]
 
-st.write(task_dictionary2)
-for parameter_name in task_dictionary:
-        fund_name_col_name='Legal_Name'
-        parameter=parameter_name
-        condition_1=task_dictionary[parameter]["condition_1"]
-        condition_2=task_dictionary[parameter]["condition_2"]
-        weightage_1=task_dictionary[parameter]["weightage_1"]
-        sort=task_dictionary[parameter]["sort"]
-        weightage_2=task_dictionary[parameter]["weightage_2"]
+with col[2].expander("task_dictionary2"):
+    st.write(task_dictionary2)
 
 total_data_df.columns= [x.replace(" ",'_') for x in total_data_df.columns]
 st.write(total_data_df)
 if st.checkbox("Apply"):
     total_weightage=mutual_fund_filter(total_data_df,task_dictionary2)
-    st._legacy_dataframe(total_weightage[x.replace(" ",'_') for x in total_data_df.columns])
+    st._legacy_dataframe(total_weightage)
 
 

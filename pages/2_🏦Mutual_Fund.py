@@ -155,7 +155,7 @@ def fetch_filter(table_name,connection,name,username):
 
     try:
         selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+username+'" and name="'+name+'"'
-        selected_file_df=pd.read_sql(selected_file_q,connection).dropna(axis=1,how='all')
+        selected_file_df=pd.read_sql(selected_file_q,connection).drop_duplicates().dropna(axis=1,how='all')
         selected_file_datetime=selected_file_df['date_time'][0]
         return selected_file_df.drop(columns=['username','name','lable','date_time'],axis=1),selected_file_datetime
     except:
@@ -173,7 +173,7 @@ def fetch_table(table_name,connection,sheet_name=None,username=None):
     if sheet_name and username:
         try:
             selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+username+'" and sheet_name="'+sheet_name+'"'
-            selected_file_df=pd.read_sql(selected_file_q,connection).dropna(axis=1,how='all').dropna(axis=0,how='any')
+            selected_file_df=pd.read_sql(selected_file_q,connection).drop_duplicates().dropna(axis=1,how='all').dropna(axis=0,how='any')
             selected_file_datetime=selected_file_df['date_time'][0]
             return selected_file_df.drop(columns=['date_time','username','lable','sheet_name'],axis=1),selected_file_datetime
         except:
@@ -216,20 +216,38 @@ def query_run(query,connection):
 
 # function to find filters parameters matching & available in sheet
 def paramter_map(test_df,filter_parameter_df):
+
     columns=test_df.columns.to_list()
-    #st.write(columns)
     columns_r=[x.replace("_", " ") for x in columns]
-    #st.write(columns_r)
+
+    #   1.Mapping the parameters to find the filter paramters in selected sheets columsn.
     match_sheet_parameter={}
     for parameter in filter_parameter_df:
         arr=[]
         for x in columns_r:
-            if parameter in x:
+            if parameter.replace(" ", "") in x.replace(" ", ""):
                 arr.append(x)
-                #st.write(sheet_param)
+
         match_sheet_parameter[parameter]=[x.replace(" ", "_") for x in arr]
+    
     return match_sheet_parameter
 
+def paramter_map2(test_df,filter_parameter_df):
+
+    columns=test_df.columns.to_list()
+    columns_r=[x.replace("_", " ") for x in columns]
+
+    #   1.Mapping the parameters to find the filter paramters in selected sheets columsn.
+    match_sheet_parameter={}
+    for parameter in filter_parameter_df:
+        arr=[]
+        for x in columns_r:
+            if parameter.replace(" ", "") == x.replace(" ", ""):
+                arr.append(x)
+
+        match_sheet_parameter[parameter]=[x.replace(" ", "_") for x in arr]
+    
+    return match_sheet_parameter
 # function to find word in list of words
 def find_words(words,words_list):
     match_sheet_parameter=[]          
@@ -344,7 +362,6 @@ def df_to_chart(form,df,x_axis,y_axis,barmode,template,color,hover_data,orientat
         styled_df_final=charts_style('Bar',styled_df)
         return styled_df_final
 
-    
 # function to get first names of funds from thier list of names for charts xaxis data
 def first_name(legal_names):
     first_names=[]
@@ -392,7 +409,7 @@ def good_funds(rr_df,main_df):
     _=""" Extract Averages of multiple years from rolling return dataframe """
 
     # Collect average columns from sheet
-    rr_sheet_df=rr_df.copy()
+    rr_sheet_df=rr_df.drop_duplicates().copy()
     #with st.expander("Parameters list"):
     parameters_list=rr_sheet_df.columns.to_list()
     avg_list=find_words([rolling_return_avg_param],parameters_list)
@@ -410,7 +427,7 @@ def good_funds(rr_df,main_df):
     _=""" Combine the average dataframe from rolling return with main sheet dataframe """
 
     # concat the main file dataframe with  average dataframe
-    main_sheet_df=main_df.copy()   # copying session state dataframe in temporary datframe for analysis
+    main_sheet_df=main_df.drop_duplicates().copy()   # copying session state dataframe in temporary datframe for analysis
 
     #pd.concat([df1.set_index('A'),df2.set_index('A')], axis=1, join='inner').reset_index() ....method to concat dataframes with one specific column
     _="""
@@ -419,7 +436,10 @@ def good_funds(rr_df,main_df):
         so we going to select 'ISIN' as specific column 
         as a index for concatenating the two dataframe with base of 'ISIN'
     """
-    
+    #
+    #st.write(main_sheet_df.set_index('ISIN'))
+    #st.write(rr_avg_quart_df.set_index('ISIN'))
+
     combined_sheet_df=pd.concat([main_sheet_df.set_index('ISIN'), rr_avg_quart_df.set_index('ISIN')],axis = 1).reset_index().dropna(axis=1,how='all').dropna(axis=0,how='any')
     #with st.expander("Combined Sheet"):
     #    st._legacy_dataframe(combined_sheet_df)
@@ -446,22 +466,22 @@ def good_funds(rr_df,main_df):
     good_funds_df.rename(columns = {'Total_1':rolling_return_total_replace_param}, inplace = True)
 
     return good_funds_df
-
 # function for filter
 #@st.experimental_memo(show_spinner=True)
 def mutual_fund_filter(test_df,process_dic):
+    #st.subheader("Mutualfilter")
     with st.spinner("Applying....."):
         time.sleep(2)
         main_df=test_df.copy()
-        main_df.columns=[x.replace("_", " ") for x in main_df.columns]  
-        total_weightage=main_df[['Legal Name','ISIN']]
+        #main_df.columns=[x.replace("_", " ") for x in main_df.columns]  
+        total_weightage=main_df[['Legal_Name','ISIN']]
         average_dict={}
-        
+        chk_list=[x.replace("_","") for x in main_df.columns.to_list()]
         for each_process in process_dic:
 
-            if each_process in main_df.columns.to_list():
+            if each_process.replace("_","") in chk_list:
 
-                fund_name_col_name='Legal Name'
+                fund_name_col_name='Legal_Name'
                 parameter=each_process
                 condition_1=process_dic[parameter]["condition_1"]
                 condition_2=process_dic[parameter]["condition_2"]
@@ -499,7 +519,7 @@ def mf_apply_filter(total_df,process_dict):
         time.sleep(1)
         try:
             st.session_state['total_weightage']=mutual_fund_filter(total_df,process_dict)
-            show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal Name'],inplace = True)
+            show_total_weightage_table=st.session_state['total_weightage'].copy().set_index([pd.Index(list(range(1, len(st.session_state['total_weightage'].copy())+1))), 'Legal_Name'],inplace = True)
             first_name_df=first_name(total_data_df['Legal_Name'].to_list())
             st.session_state['total_data_df']=pd.concat([st.session_state['total_weightage'],first_name_df,total_data_df.drop(['Legal_Name','ISIN','index'],axis=1)],axis=1)
             st.session_state['sorted_total_weightage_df']=st.session_state['total_weightage'].sort_values(by='Result',ascending=False)
@@ -512,17 +532,16 @@ def mf_apply_filter(total_df,process_dict):
             st.stop()            
 
 
-
 def mf_dashboard_data(sorted_total_df):
     template='plotly_white'   
-    hover_data=['Legal Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard Deviation', 'Annual Return', 'SIP Return', 'Sharpe Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
+    hover_data=['Legal_Name', 'ISIN','Quartile', 'Rolling_Return', 'Standard_Deviation', 'Annual_Return', 'SIP_Return', 'Sharpe_Ratio', 'Alpha', 'Beta', 'Morningstar_Category']
     barmode='group'
     text_auto='.2s'
     with st.spinner("Preparing Dashboard......"):
         try:
             st.session_state['total_data_df_chart']=df_to_chart(form='Bar',df=sorted_total_df,title='Funds Weightage',x_axis='First_Name',y_axis='Result',barmode='group',template=template,hover_data=hover_data,color='Result',orientation='v')
-            st.session_state['total_assets_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','Total_Assets_?MM','Total Assets ?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
-            st.session_state['Assets_Holdings_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','% Assets in Top 10 Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            st.session_state['total_assets_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='Total_Assets_?MM',ascending=True),title='Total Assets',x_axis='Total_Assets_?MM',y_axis='First_Name',template=template,hover_data=['Legal_Name', 'ISIN','Quartile','Total_Assets_?MM','Total_Assets_?MM_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
+            st.session_state['Assets_Holdings_chart']=df_to_chart(form='Bar',df=sorted_total_df.head(5).sort_values(by='%_Assets_in_Top_10_Holdings',ascending=False),title='Assets Holdings',x_axis='%_Assets_in_Top_10_Holdings',y_axis='First_Name',template=template,hover_data=['Legal_Name', 'ISIN','Quartile','%_Assets_in_Top_10_Holdings','%_Assets_in_Top_10_Holdings_w'],barmode='group',color='Total_Assets_?MM',orientation='h')
             st.success("Dashboard generated...")
             time.sleep(1)
             return 1
@@ -532,10 +551,11 @@ def mf_dashboard_data(sorted_total_df):
             time.sleep(1)
             return 0
 
+
 def mf_report_data(sorted_total_df,sorted_weightage_df):
     with st.spinner("Preparing Report....."):
-        show_df_TAMM =sorted_total_df[['ISIN','Legal Name','Total_Assets_?MM']]
-        show_df_AITH=sorted_total_df[['ISIN','Legal Name','%_Assets_in_Top_10_Holdings']]
+        show_df_TAMM =sorted_total_df[['ISIN','Legal_Name','Total_Assets_?MM']]
+        show_df_AITH=sorted_total_df[['ISIN','Legal_Name','%_Assets_in_Top_10_Holdings']]
         try:
             ta_rf_l=red_flag_ind(show_df_TAMM.head(5),parameter='Total_Assets_?MM',consentration='Low')
             st.session_state['rf_TAMM_df']=show_df_TAMM.drop('ISIN',axis=1).style.apply(lambda x: ['background: lightgreen' if x.name in ta_rf_l else '' for i in x], axis=1)
@@ -580,82 +600,90 @@ Sessionstate variables
 
 # Main file name & dataframe
 #   1.main files names
-if 'main_file_names' not in st.session_state:
-    st.session_state['main_file_names']=sheet_names(username=username,table_name=mf_sheet_table,connection=sq_conn)
+#if 'main_file_names' not in st.session_state:
+#    st.session_state['main_file_names']=sheet_names(username=username,table_name=mf_sheet_table,connection=sq_conn)
+if not len(st.session_state['main_file_names']):
+    st.error("Sorry, you didn't have uploaded any sheets...")
+    st.warning("Please,upload your sheets first!!!!")
+    st.stop()
 
-#   2.selected main file name
-if 'selected_main_file_name' not in st.session_state:
-    st.session_state['selected_main_file_name']=st.session_state['main_file_names'].iloc[0]['sheet_name']
+#if 'rr_file_names' not in st.session_state:
+#    st.session_state['rr_file_names']=sheet_names(username=username,table_name= mf_rolling_return_table,connection= sq_conn)
+else:
+    #   2.selected main file name
+    if 'selected_main_file_name' not in st.session_state:
+        st.session_state['selected_main_file_name']=st.session_state['main_file_names'].iloc[0]['sheet_name']
 
-#   3.selected main file df
-if 'selected_main_file_df' and 'selected_main_file_date' not in st.session_state:
-    st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],connection=sq_conn,username=username)
+    #   3.selected main file df
+    if 'selected_main_file_df' and 'selected_main_file_date' not in st.session_state:
+        st.session_state['selected_main_file_df'],st.session_state['selected_main_file_date']=fetch_table(mf_sheet_table,sheet_name=st.session_state['selected_main_file_name'],connection=sq_conn,username=username)
 
-# Rolling return name & dataframe
-# fetch rr file names
-#   4.rr files names
-if 'rr_file_names' not in st.session_state:
-    st.session_state['rr_file_names']=sheet_names(username=username,table_name= mf_rolling_return_table,connection= sq_conn)
+    # Rolling return name & dataframe
+    # fetch rr file names
+    #   4.rr files names
 
-if 'selected_rr_file_name' not in st.session_state:
-    st.session_state['selected_rr_file_name']=st.session_state['rr_file_names'].iloc[0]['sheet_name']
+    if 'selected_rr_file_name' not in st.session_state:
+        st.session_state['selected_rr_file_name']=st.session_state['rr_file_names'].iloc[0]['sheet_name']
 
-if 'selected_rr_file_df' and 'selected_rr_file_date' not in st.session_state:
-    st.session_state['selected_rr_file_df'],st.session_state['selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['selected_rr_file_name'],connection=sq_conn,username=username)
+    if 'selected_rr_file_df' and 'selected_rr_file_date' not in st.session_state:
+        st.session_state['selected_rr_file_df'],st.session_state['selected_rr_file_date']=fetch_table(mf_rolling_return_table,sheet_name=st.session_state['selected_rr_file_name'],connection=sq_conn,username=username)
+    #st.write(st.session_state['selected_rr_file_df'])
 
-# selected file names
-if "select_main_file" not in st.session_state:
-    st.session_state['select_main_file']=''
+    # selected file names
+    if "select_main_file" not in st.session_state:
+        st.session_state['select_main_file']=''
 
-if "select_rr_file" not in st.session_state:
-    st.session_state['select_rr_file']=''
+    if "select_rr_file" not in st.session_state:
+        st.session_state['select_rr_file']=''
 
-# Good funds dataframe
-if 'good_funds_df' not in st.session_state:
-    st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['selected_rr_file_df'],main_df=st.session_state['selected_main_file_df'])
+    # Good funds dataframe
+    if 'good_funds_df' not in st.session_state:
+        st.session_state['good_funds_df']=good_funds(rr_df=st.session_state['selected_rr_file_df'],main_df=st.session_state['selected_main_file_df'])
 
-#sourcefiles
-if 'source_file1' not in st.session_state:
-    st.session_state['source_file1']=st.session_state['selected_main_file_name']
+    #sourcefiles
+    if 'source_file1' not in st.session_state:
+        st.session_state['source_file1']=st.session_state['selected_main_file_name']
 
-if 'source_file2' not in st.session_state:
-    st.session_state['source_file2']= st.session_state['selected_rr_file_name']
+    if 'source_file2' not in st.session_state:
+        st.session_state['source_file2']= st.session_state['selected_rr_file_name']
 
-# filter table
-if 'mf_filter_names' not in st.session_state:
-    st.session_state['mf_filter_names']=filter_names(username=username,table_name=mf_filter_table,connection=sq_conn)
+    # filter table
+    if 'mf_filter_names' not in st.session_state:
+        st.session_state['mf_filter_names']=filter_names(username=username,table_name=mf_filter_table,connection=sq_conn)
 
-if 'selected_mf_filter_name' not in st.session_state:
-    st.session_state['selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
+    if len(st.session_state['mf_filter_names']):
 
-if 'selected_mf_filter_df' and 'selected_mf_filter_date' not in st.session_state:
-    st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
+        if 'selected_mf_filter_name' not in st.session_state:
+            st.session_state['selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
 
-# total weightage table
-if 'total_weightage_table' not in st.session_state:
-    st.session_state['total_weightage_table']=0
+        if 'selected_mf_filter_df' and 'selected_mf_filter_date' not in st.session_state:
+            st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
 
-if 'sorted_total_weightage_df' not in st.session_state:
-    st.session_state['sorted_total_weightage_df']=0
+    # total weightage table
+    if 'total_weightage_table' not in st.session_state:
+        st.session_state['total_weightage_table']=0
 
-if 'show_total_weightage_table' not in st.session_state:
-    st.session_state['show_total_weightage_table']=0
+    if 'sorted_total_weightage_df' not in st.session_state:
+        st.session_state['sorted_total_weightage_df']=0
 
-# Final total table
-if 'total_data_df' not in st.session_state:
-    st.session_state['total_data_df']=pd.DataFrame()
+    if 'show_total_weightage_table' not in st.session_state:
+        st.session_state['show_total_weightage_table']=0
 
-if 'sorted_total_data_df' not in st.session_state:
-    st.session_state['sorted_total_data_df']=0
+    # Final total table
+    if 'total_data_df' not in st.session_state:
+        st.session_state['total_data_df']=pd.DataFrame()
 
-if 'dash_generated' not in st.session_state:
-    st.session_state['dash_generated']=0
+    if 'sorted_total_data_df' not in st.session_state:
+        st.session_state['sorted_total_data_df']=0
 
-if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
-    st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
+    if 'dash_generated' not in st.session_state:
+        st.session_state['dash_generated']=0
 
-if 'mf_analysis_report'and 'rf_TAMM_df' and 'rf_AITH_df' not in st.session_state:
-    st.session_state['mf_analysis_report'],st.session_state['rf_TAMM_df'],st.session_state['rf_AITH_df']=0,0,0
+    if 'total_data_df_chart' and 'total_assets_chart' and 'Assets_Holdings_chart' not in st.session_state:
+        st.session_state['total_data_df_chart'],st.session_state['total_assets_chart'],st.session_state['Assets_Holdings_chart']=0,0,0
+
+    if 'mf_analysis_report'and 'rf_TAMM_df' and 'rf_AITH_df' not in st.session_state:
+        st.session_state['mf_analysis_report'],st.session_state['rf_TAMM_df'],st.session_state['rf_AITH_df']=0,0,0
 
 
 _="""  
@@ -751,7 +779,8 @@ total_data_df=st.session_state['good_funds_df'].copy()
 
 _=""" Filter """
 # Copying Filter
-filter_df=st.session_state['selected_mf_filter_df'].copy()
+if len(st.session_state['mf_filter_names']):
+    filter_df=st.session_state['selected_mf_filter_df'].copy()
 
 # FIlter creation
 #with st.expander("Show Filter"):
@@ -762,22 +791,23 @@ with filter_tab:
     select_filter_col[2].write("")
 
     select_filter_col[0].header("🧰 My Filter")
-
-    ft_selected_filter_name=select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'])
-    if select_filter_col[2].button("🔍",key='select_filter_col'):
-        st.session_state['selected_mf_filter_name']=ft_selected_filter_name
-        st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
-        st.experimental_rerun()
-        
-    # show filter
-    if len(st.session_state['selected_mf_filter_df']):
-        select_filter_col[0].subheader('🧮 {}'.format(st.session_state['selected_mf_filter_name']))
-        select_filter_col[1].write('📅 Created at:'+str(st.session_state['selected_mf_filter_date']))
-        with st.expander("Show filter"):
-            st._legacy_dataframe(st.session_state['selected_mf_filter_df'],height=1000)
+    if len(st.session_state['mf_filter_names']):
+        ft_selected_filter_name=select_filter_col[1].selectbox("",options=st.session_state['mf_filter_names'])
+        if select_filter_col[2].button("🔍",key='select_filter_col'):
+            st.session_state['selected_mf_filter_name']=ft_selected_filter_name
+            st.session_state['selected_mf_filter_df'],st.session_state['selected_mf_filter_date']=fetch_filter(mf_filter_table,connection=sq_conn,username=username,name=st.session_state['selected_mf_filter_name'])
+            st.experimental_rerun()
+            
+        # show filter
+        if len(st.session_state['selected_mf_filter_df']):
+            select_filter_col[0].subheader('🧮 {}'.format(st.session_state['selected_mf_filter_name']))
+            select_filter_col[1].write('📅 Created at:'+str(st.session_state['selected_mf_filter_date']))
+            with st.expander("Show filter"):
+                st._legacy_dataframe(st.session_state['selected_mf_filter_df'],height=1000)
+        else:
+            st.info('Empty...')
     else:
-        st.info('Empty...')
-
+        st.warning("Please,Create your filter first...")
 
 with create_tab:
 
@@ -857,7 +887,7 @@ with create_tab:
 
 
 with add_tab:
-        
+    if len(st.session_state['mf_filter_names']):    
         if 'at_df_filter' not in st.session_state:
             st.session_state['at_df_filter'] = pd.DataFrame({'parameter': [], 'condition_1': [],
                                 'condition_2': [], 'weightage_1': [], 'sort': [], 'weightage_2': []})
@@ -942,10 +972,11 @@ with add_tab:
                 st._legacy_dataframe(st.session_state['at_selected_mf_filter_df'],height=1000)
         else:
             st.info('Empty...')
-
+    else:
+        st.warning("Please,Create your filter first...")
 
 with update_tab:
-        
+    if len(st.session_state['mf_filter_names']):    
         if 'ut_selected_mf_filter_name' not in st.session_state:
             st.session_state['ut_selected_mf_filter_name']=st.session_state['mf_filter_names'].iloc[0]['name']
         
@@ -1087,41 +1118,67 @@ with update_tab:
                 st._legacy_dataframe(st.session_state['ut_selected_mf_filter_df'],height=1000)
         else:
             st.info('Empty...')
-    
+    else:
+        st.warning("Please,Create your filter first...")
 
-_=""" Filter process """
-        #1) Add average parameters into one column of rolling returns
-        #2) Average out the multiple years of same paramaters in good funds df in one single parameter coulumn name taken from filter
-        #3) prepare filter process
-        #4) apply filter
-     
-_=""" 1)Adding the Average parameters with mulitple years data and combining in one Rolling return Column"""
+if len(st.session_state['mf_filter_names']):
+    _=""" Filter process """
+            #1) Add average parameters into one column of rolling returns
+            #2) Average out the multiple years of same paramaters in good funds df in one single parameter coulumn name taken from filter
+            #3) prepare filter process
+            #4) apply filter
+        
+    _=""" 1)Adding the Average parameters with mulitple years data and combining in one Rolling return Column"""
 
-# 1.1) Find average parameters columns
-avg_columns_list=find_words([rolling_return_avg_param],total_data_df.columns.to_list())
+    # 1.1) Find average parameters columns
+    avg_columns_list=find_words([rolling_return_avg_param],total_data_df.columns.to_list())
 
-# 1.2) Combining Average columns data into one single column of Rolling returns and adding it in googd funds table
-total_data_df['Rolling_Return'] = total_data_df[avg_columns_list].sum(axis=1)/len(avg_columns_list)
-#st._legacy_dataframe(total_data_df)
-_=""" 2) Average out the multiple years of same paramaters in good funds df in one single parameter coulumn name taken from filter"""
+    # 1.2) Combining Average columns data into one single column of Rolling returns and adding it in googd funds table
+    total_data_df['Rolling_Return'] = total_data_df[avg_columns_list].sum(axis=1)/len(avg_columns_list)
+    #total_data_df=total_data_df.drop(columns= avg_columns_list,axis=1)
+    _=""" 2) Average out the multiple years of same paramaters in good funds df in one single parameter coulumn name taken from filter"""
+    # 2.1) find the filter parameters matching with main combined sheet
+    matched_parameter_dict=paramter_map(total_data_df,filter_df['parameter'])
+    # 2.2) for each parameters multiple data take average with result in single column with name matching in filter table
+    #for each_param in matched_parameter_dict:
+    #    if len(matched_parameter_dict[each_param])>1:
+    #        total_data_df[each_param] = total_data_df[matched_parameter_dict[each_param]].sum(axis=1)/len(avg_columns_list)
 
-# 2.1) find the filter parameters matching with main combined sheet
-matched_parameter_dict=paramter_map(total_data_df,filter_df['parameter'])
-#st.write(matched_parameter_dict)
-# 2.2) for each parameters multiple data take average with result in single column with name matching in filter table
-for each_param in matched_parameter_dict:
-    if len(matched_parameter_dict[each_param])>1:
-        total_data_df[each_param] = total_data_df[matched_parameter_dict[each_param]].sum(axis=1)/len(avg_columns_list)
 
-#st.write('each multi yr data into single column added to total_data_df')
-#st._legacy_dataframe(total_data_df)
+    #   2.Averaging the multi year data
+    #total_data_df=test_df.copy()
 
-_=""" 3) prepare filter process"""
-# 3.1) converting filter table into one dictionary of process
-process_dic=filter_df.set_index('parameter').to_dict(orient='index')
-_=""" 4) Apply filter """
-# 4.1) Apply filter
-# layout
+    for each_param in matched_parameter_dict:
+        if len(matched_parameter_dict[each_param])>1:
+            total_data_df[each_param.replace(" ","_")] = total_data_df[matched_parameter_dict[each_param]].sum(axis=1)/len(matched_parameter_dict[each_param])
+        #test_df= total_data_df.drop(columns= matched_parameter_dict[each_param],axis=1)
+
+    #st.write('each multi yr data into single column added to total_data_df')
+
+    matched_parameter_dict_2=paramter_map2(total_data_df,filter_df['parameter'])
+
+    _=""" 3) prepare filter process"""
+    # 3.1) converting filter table into one dictionary of process
+    #st.write(filter_df)
+
+    process_dic=filter_df.drop_duplicates().set_index('parameter').to_dict(orient='index')
+
+
+    # 6.Preparing the final task dictionary
+    task_dictionary2={}
+    for filter_parameter in filter_df['parameter']:
+        if len(matched_parameter_dict_2[filter_parameter]):
+            matched_sheet_param=matched_parameter_dict_2[filter_parameter][0]
+        #if filter_parameter in matched_parameter_dict_2:
+            task_dictionary2[matched_sheet_param]=process_dic[filter_parameter]
+
+
+    #total_data_df.columns= [x.replace(" ","_") for x in total_data_df.columns]
+    #st.write(total_data_df)
+
+    _=""" 4) Apply filter """
+    # 4.1) Apply filter
+    # layout
 
 
 
@@ -1132,7 +1189,7 @@ with filter_tab:
     #apply_only_cheak=apply_col[2].checkbox("Apply Only")
     if apply_cheak:
         try:
-            mf_apply_filter(total_df=total_data_df,process_dict=process_dic)
+            mf_apply_filter(total_df=total_data_df,process_dict=task_dictionary2)
             st.session_state['dash_generated']=mf_dashboard_data(sorted_total_df=st.session_state['sorted_total_data_df'])
             mf_report_data(sorted_total_df=st.session_state['sorted_total_data_df'],sorted_weightage_df=st.session_state['sorted_total_weightage_df'])   
         except:
@@ -1152,7 +1209,6 @@ with filter_tab:
         dashboard_tab,report_tab=st.tabs(["Dashboard",'Report'])
 
         
-
         with dashboard_tab:
             if st.session_state['dash_generated']:
                 title_col=st.columns((4,5))

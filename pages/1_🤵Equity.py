@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from sqlalchemy import create_engine,text
 from Home import filter_table,master_table,sentiment_table
-from Home import sqlalchemy_connection
+from Home import sqlalchemy_connection,refresh_dashboard
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 import plotly.graph_objects as go
 import seaborn as sns
@@ -247,6 +247,7 @@ def rem_under_scr_col_list(df):
         elif str(type(df))=="<class 'pandas.core.series.Series'>":
             rem_under_scored = [x.replace("_", " ") for x in list(df)]
             return rem_under_scored
+        
 def filter_validate(filter,df):
         l=set(df.columns.values)
         c=set(filter['parameter_name'])
@@ -296,7 +297,6 @@ def wightage_dataframe(user,connection,master_sheet_table_name,master_table,mast
         st.session_state['weightage_result_df'].insert(7, "Resultants", st.session_state['weightage_result_df'].apply(lambda x: x['Positives']+x['Neutrals']-x['Negetives'], axis=1))
        
         return st.session_state['weightage_result_df']
-
 
 def admin_wightage_dataframe(user,connection,master_sheet_table_name,master_table,master_table_date,selected_filter_name,filter_table,filter_date):
 
@@ -375,7 +375,7 @@ def fetch_filter(table_name,_connection,name,_username):
 
     try:
         selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+_username+'" and name="'+name+'"'
-        selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all')
+        selected_file_df=pd.read_sql(selected_file_q,_connection).drop_duplicates().dropna(axis=1,how='all')
         selected_file_datetime=selected_file_df['date_time'][0]
         return selected_file_df.drop(columns=['username','name','lable','date_time'],axis=1),selected_file_datetime
     except:
@@ -392,7 +392,7 @@ def fetch_table(table_name,_connection,sheet_name=None,_username=None):
     if sheet_name and _username:
         try:
             selected_file_q='SELECT * FROM '+ table_name+' WHERE username="'+_username+'" and sheet_name="'+sheet_name+'"'
-            selected_file_df=pd.read_sql(selected_file_q,_connection).dropna(axis=1,how='all')
+            selected_file_df=pd.read_sql(selected_file_q,_connection).drop_duplicates().dropna(axis=1,how='all')
             selected_file_datetime=selected_file_df['date_time'][0]
             return selected_file_df.drop(columns=['username','sheet_name','lable','date_time'],axis=1),selected_file_datetime
         except:
@@ -710,8 +710,12 @@ _="""
 
 _=""" Variables"""
 # 0.Sheets names
-if 'users_sheets_names' not in st.session_state:
-    st.session_state['users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
+#if 'users_sheets_names' not in st.session_state:
+#    st.session_state['users_sheets_names']=sheet_names(st.session_state["username"],master_table,sq_conn)
+if not len(st.session_state['users_sheets_names']):
+    st.error("Sorry, you didn't have uploaded any sheets...")
+    st.warning("Please,upload your sheets first!!!!")
+    st.stop()
 
 # 1.selected sheet
 if 'selected_sheet_name' not in st.session_state:
@@ -730,15 +734,15 @@ if 'parameters_list' not in st.session_state:
 if 'users_filter_names' not in st.session_state:
     st.session_state['users_filter_names']=filter_names(_username=st.session_state['username'],table_name=filter_table,_connection=sq_conn)
 
+if len(st.session_state['users_filter_names']):
+    # 5.selected filter name
+    if 'selected_filter_name' not in st.session_state:
+        st.session_state['selected_filter_name']=st.session_state['users_filter_names'].sort_values(by="name",ascending=False).iloc[0]['name']
 
-# 5.selected filter name
-if 'selected_filter_name' not in st.session_state:
-    st.session_state['selected_filter_name']=st.session_state['users_filter_names'].sort_values(by="name",ascending=False).iloc[0]['name']
 
-
-# 6.selected filter df
-if 'selected_filter_df' and 'selected_filter_date' not in st.session_state:
-    st.session_state['selected_filter_df'],st.session_state['selected_filter_date']=fetch_filter(table_name=filter_table,_connection=sq_conn,name=st.session_state['selected_filter_name'],_username=st.session_state['username']) 
+    # 6.selected filter df
+    if 'selected_filter_df' and 'selected_filter_date' not in st.session_state:
+        st.session_state['selected_filter_df'],st.session_state['selected_filter_date']=fetch_filter(table_name=filter_table,_connection=sq_conn,name=st.session_state['selected_filter_name'],_username=st.session_state['username']) 
 
 # 7.top se
 if "top_se" not in st.session_state:
@@ -859,6 +863,7 @@ if len(st.session_state['users_sheets_names'])!=0:
                     time.sleep(1)
                     st.success("Done")
                     time.sleep(1)
+                    refresh_dashboard(username)
                     st.experimental_rerun()
             
         if 'df_filter' not in st.session_state:
@@ -923,8 +928,7 @@ if len(st.session_state['users_sheets_names'])!=0:
                             time.sleep(1)
                             st.session_state.df_filter = st.session_state.df_filter.drop(x for x in range(len(st.session_state.df_filter)))
                             st.session_state.df_filter.drop(st.session_state.df_filter.columns[[0,1,2,3]], axis=1, inplace=True)
-                            st.session_state['users_filter_names']=filter_names(_username=st.session_state['username'],table_name=filter_table,_connection=sq_conn)
-
+                            refresh_dashboard(username)
                         except:
                             st.error("Error to save this filter...")
                             st.warning("please try again....")
@@ -1053,7 +1057,8 @@ if len(st.session_state['users_sheets_names'])!=0:
                                 
                                 sq_cur.execute(text(update_q))                                
                                 st.success("Filter updated...")
-                                st.session_state.temp_df.drop(st.session_state.temp_df.index, inplace=True)    
+                                st.session_state.temp_df.drop(st.session_state.temp_df.index, inplace=True)
+                                refresh_dashboard(username)    
                         except:
                             st.error("Error to update...")
                             st.warning("please try again....")
@@ -1071,6 +1076,7 @@ if len(st.session_state['users_sheets_names'])!=0:
                             sq_cur.execute(text(del_row))
                             st.success("Deleted...")
                             time.sleep(2)
+                            refresh_dashboard(username)    
                             #st.experimental_rerun()
                         except:
                             st.error("Error to delete...")
@@ -1123,12 +1129,12 @@ if len(st.session_state['users_sheets_names'])!=0:
                                 test_df1.to_sql(filter_table, sq_conn, if_exists='append', index=False)
                                 st.succcess("Filters are merged..")
                                 time.sleep(1)
-                                st.experimental_rerun()
+                                refresh_dashboard(username)    
                             except:
                                 st.error("Error to merge...")
                                 st.warning("please try again....")
                                 time.sleep(2)
-                                st.experimental_rerun()
+                            st.experimental_rerun()
             
             test_df.index = np.arange(1, len(test_df) + 1)
             #show_df3 = selected_filter_df_m.copy()

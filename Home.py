@@ -4,7 +4,7 @@ import pandas as pd
 from PIL import Image
 from datetime import datetime
 import streamlit_authenticator as stauth
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine,text
 from validate_email_address import validate_email
 from password_validator import PasswordValidator
 import smtplib, ssl
@@ -52,6 +52,7 @@ if "Home_Image" not in st.session_state:
 col1=st.columns((2,1))
 with col1[0]:
     col1[0].markdown('# 📈Stocks Analyser')
+    col1[0].info("Username:chetan|Password:Chetan@3333")
     col1[0].image(st.session_state["Home_Image"], caption='Stocks Analyser',use_column_width=True)
 
 
@@ -328,7 +329,84 @@ def auth_func(names_,uernames_,passwords_):
     return names,authentication_status,username,authenticator
 
 
+def sheet_names(_username,table_name,_connection):
+    try:
+        file_names_q='SELECT sheet_name FROM ' + table_name +' Where username="'+_username+'"'
+        file_names_df=pd.read_sql_query(file_names_q,_connection).drop_duplicates()
+        return file_names_df
+    except:
+        st.error("Something were wrong......")
+        if not st.session_state["sq_cur_obj"]:
+            st.session_state["sq_cur_obj"]=0   
+            time.sleep(2)
+            st.warning("Please check connection.....")
+            st.experimental_rerun()
 
+def filter_names(_username,table_name,_connection):
+    try:
+        file_names_q='SELECT name FROM ' + table_name +' Where username="'+_username+'"'
+        file_names_df=pd.read_sql_query(file_names_q,_connection).drop_duplicates()
+        return file_names_df
+    except:
+        st.error("Something were wrong......")
+        if not st.session_state["sq_cur_obj"]:
+            st.session_state["sq_cur_obj"]=0   
+            time.sleep(2)
+            st.warning("Please check connection.....")
+            st.experimental_rerun()
+
+
+
+
+def query_run(query,connection):
+    try:
+        df=pd.read_sql_query(query,connection)
+        return df
+    except:
+        st.error("Something went wrong!!!")
+        if not st.session_state["sq_cur_obj"]:
+            st.session_state["sq_cur_obj"]=0   
+            st.error("Connection lost")
+            time.sleep(2)
+            st.experimental_rerun()
+
+
+def user_data_collection(username):
+    with st.spinner("Please wait,dashboard is collecting your uploads..."):
+        try:
+            st.session_state['users_sheets_names']=sheet_names(username,master_table,sq_conn)
+            st.session_state['users_filter_names']=filter_names(_username=st.session_state['username'],table_name=filter_table,_connection=sq_conn)
+            st.session_state['main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
+            st.session_state['rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+            st.session_state['mf_filter_names']=filter_names(username=username,table_name=mf_filter_table,connection=sq_conn)
+            st.session_state['u_users_sheets_names']=sheet_names(username,master_table,sq_conn)
+            st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+            st.session_state['u_main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
+            st.success("Collected your data....")
+            ret="Enjoy your analysis..."
+            time.sleep(2)
+            return ret,1
+        except:
+            st.error("Dashboard gets problem to collect your data...")
+            time.sleep(2)
+            ret="Dashboard gets problem to collect your data..."
+            return ret,0
+
+def refresh_dashboard(username):
+    with st.spinner("Refreshing dashboard.."):
+        try:
+            st.session_state['users_sheets_names']=sheet_names(username,master_table,sq_conn)
+            st.session_state['main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
+            st.session_state['rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+            st.session_state['u_users_sheets_names']=sheet_names(username,master_table,sq_conn)
+            st.session_state['u_rr_file_names']=sheet_names(username,mf_rolling_return_table,sq_conn)
+            st.session_state['u_main_file_names']=sheet_names(username,mf_sheet_table,sq_conn)
+            st.session_state['users_filter_names']=filter_names(_username=st.session_state['username'],table_name=filter_table,_connection=sq_conn)
+            time.sleep(1)
+        except:
+            st.error("Error refreah dashboard..")
+            time.sleep(2)
+        
 _="""
 
     session state
@@ -371,7 +449,32 @@ if 'OTP' not in st.session_state:
 
 # 7.Values
 if 'values' not in st.session_state:
-    st.session_state["values"]='' 
+    st.session_state["values"]=pd.DataFrame()
+
+
+_=""" Users sheets"""
+# 1.Equity Sheets
+if 'users_sheets_names' not in st.session_state:
+    st.session_state['users_sheets_names']=pd.DataFrame()
+
+# 2.main files names
+if 'main_file_names' not in st.session_state:
+    st.session_state['main_file_names']=pd.DataFrame()
+
+# 3.rr files names
+if 'rr_file_names' not in st.session_state:
+    st.session_state['rr_file_names']=pd.DataFrame()
+
+# Myuplods sheets
+if 'u_users_sheets_names' not in st.session_state:
+    st.session_state['u_users_sheets_names']=pd.DataFrame()
+
+if 'u_rr_file_names' not in st.session_state:
+    st.session_state['u_rr_file_names']=pd.DataFrame()
+
+if 'u_main_file_names' not in st.session_state:
+    st.session_state['u_main_file_names']=pd.DataFrame()
+
 
 _="""SS_Buttons"""
 # 1. Loggin 
@@ -424,8 +527,18 @@ def main():
                 names, st.session_state['authentication_status'], username, st.session_state["authenticator"]=auth_func(st.session_state["names"],st.session_state["usernames"],st.session_state["hashed_password"])
                 #names, st.session_state['authentication_status'], username = authenticator.login("Login", "main")
                 if st.session_state["authentication_status"]: 
-                    st.session_state["username"]=username    
+                    st.session_state["username"]=username
+                    refresh_dashboard(username)
+                    warn,flag=user_data_collection(username=st.session_state["username"])
+                    if flag==0:    
+                        col1[1].error(warn)
+                        time.sleep(2)
+                    else:
+                        col1[1].success(warn)
+                        time.sleep(2)
                     st.experimental_rerun()
+
+
                 elif st.session_state["authentication_status"] == False:
                     st.error('Username/password is incorrect')
                     st.session_state["forget_password"]=st.button("Forget Password",on_click=forget_password_callback)
@@ -443,11 +556,20 @@ def main():
                     password = st.text_input("Password", type='password',help="Eg. password=James@333",max_chars=100)
                     hashed_password = stauth.Hasher([str(password)]).generate()
                     acc_query = "SELECT * FROM user_login where id='" + str(user_id) + "' OR username='" + username + "'"
-                    cur.execute(acc_query)
-                    values = cur.fetchall()
+                    st.write(query_run(acc_query,connection=sq_conn))
+                    values =query_run(acc_query,connection=sq_conn)
                     if st.form_submit_button("Sign Up"):
                         mail_v, mail_e,user_v,user_e,pass_v,pass_e=user_validate(user_id,username,password)
-                        if mail_v==False or user_v==False or pass_v==False:
+
+                        if len(values):
+                            if username in values['username'].to_list():
+                                st.error("Username is already used,Please select another username!!")
+                            elif user_id in values['id'].to_list():
+                                st.error("User ID is already used,Please select another User ID!!")
+                            else:
+                                st.warning("User already exist!,Please try new username/user_id")
+
+                        elif mail_v==False or user_v==False or pass_v==False:
                             if mail_v==False:
                                 st.warning("1.invalid mail-id")
                                 st.error(mail_e)
@@ -457,12 +579,12 @@ def main():
                             if pass_v==False:
                                 st.warning("3.invalid password")
                                 st.error(pass_e)
-                        elif values:
-                            st.warning("User already exist!,Please try new username/mail_id")
+
+
                         else:    
                             add_query = 'insert into `user_login`(`id`,`username`,`password`)VALUES(%s,%s,%s)'
-                            cur.execute(add_query, (str(user_id), username, str(hashed_password[0])))
-                            conn.commit()
+                            sq_cur.execute(add_query, (str(user_id), username, str(hashed_password[0])))
+                            #sq_cur.commit()
                             st.success("Successfully created.")
                             password_mail(user_id, username, password)
                             st.balloons()
@@ -500,10 +622,10 @@ def main():
                             st.experimental_rerun()
                         elif mail_v==True:    
                             acc_query = "SELECT * FROM user_login where id='" + str(st.session_state["user_id"]) + "'" 
-                            cur.execute(acc_query)      
-                            st.session_state["values"] = cur.fetchall()
+                            #sq_cur.execute(text(acc_query))      
+                            st.session_state["values"] = query_run(acc_query,connection=sq_conn)
                             #st.experimental_rerun()
-                            if st.session_state["values"]:
+                            if len(st.session_state["values"]):
                                 if not st.session_state["OTP"]:
                                     st.session_state["OTP"]=reset_password_mail_verfication(st.session_state["user_id"])
                                     st.experimental_rerun()
@@ -529,8 +651,7 @@ def main():
                     st.subheader("Reset Password")
                     new_pass=st.text_input(" New password",type="password")
                     conf_pass=st.text_input(" New password confirmation",type="password")
-                    
-                    
+                                      
                     if st.form_submit_button("Save Password"):
                         pass_v,pass_e=user_validate(password=conf_pass)
                         
@@ -541,8 +662,7 @@ def main():
                             elif pass_v==True:
                                 hashed_password = stauth.Hasher([str(new_pass)]).generate()
                                 reset_pass_q="UPDATE user_login SET password = '"+str(hashed_password[0])+"' WHERE id = '"+st.session_state["user_id"]+"'"
-                                cur.execute(reset_pass_q)
-                                conn.commit()
+                                sq_cur.execute(text(reset_pass_q))
                                 st.success("Password has reset")
                                 time.sleep(2)
                                 st.session_state["user_id"]=''
@@ -565,7 +685,6 @@ def main():
                     st.session_state=0
                     st.experimental_rerun()  
 
-col1[1].info("Username:chetan|Password:Chetan@3333")
 
 if __name__ == '__main__':
         main()
